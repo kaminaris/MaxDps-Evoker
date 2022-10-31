@@ -1,0 +1,10 @@
+## Title: MaxDps_Evoker
+## Version: 10.0.0
+## Author: Kaminaris, Skynet
+## Interface: 100000
+## Dependencies: MaxDps
+## LoadOnDemand: 1
+
+Main.lua
+Specialization\Devastation.lua
+Specialization\Preservation.lua
