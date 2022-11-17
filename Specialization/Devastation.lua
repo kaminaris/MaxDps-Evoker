@@ -10,8 +10,11 @@ local DV = {
     TipTheScales = 370553,
     Dragonrage = 375087,
     ShatteringStar = 370452,
-    EternitySurge = 382411,
-    FireBreath = 382266,
+    EternitySurge = 359073,
+    EternitySurgeFontOfMagic = 382411,
+    FireBreath = 357208,
+    FireBreathFontOfMagic = 382266,
+    FontOfMagic = 375783,
     Disintegrate = 356995,
     LivingFlame = 361469,
     AzureStrike = 362969,
@@ -21,10 +24,22 @@ local DV = {
     Burnout = 375802,
     ShatteringStar = 370452,
     EssenceAttunement = 375722,
-    Snapfire = 370818
+    Snapfire = 370818,
+    EverburningFlame = 370819,
+    ChargedBlast = 370455,
+    ChargedBlastBuff = 370454
 };
 
 setmetatable(DV, Evoker.spellMeta);
+
+local function getSpellCost(spellId, defaultCost)
+    local cost = GetSpellPowerCost(spellId);
+    if cost ~= nil then
+        return cost[1].cost;
+    end
+
+    return defaultCost
+end
 
 function Evoker:Devastation()
     local fd = MaxDps.FrameData;
@@ -32,6 +47,9 @@ function Evoker:Devastation()
     local talents = fd.talents
     fd.maxEssenceBurst = talents[DV.EssenceAttunement] and 2 or 1
     local cooldown = fd.cooldown
+
+    fd.fireBreathSpellId = talents[DV.FontOfMagic] and DV.FireBreathFontOfMagic or DV.FireBreath
+    fd.eternitySurgeSpellId = talents[DV.FontOfMagic] and DV.EternitySurgeFontOfMagic or DV.EternitySurge
 
     if talents[DV.Dragonrage] then
         MaxDps:GlowCooldown(DV.Dragonrage, cooldown[DV.Dragonrage].ready)
@@ -41,9 +59,9 @@ function Evoker:Devastation()
         MaxDps:GlowCooldown(DV.TipTheScales, cooldown[DV.TipTheScales].ready)
     end
 
-    local targets = MaxDps:SmartAoe()
+    fd.targets = MaxDps:SmartAoe()
 
-    if targets > 1 then
+    if fd.targets > 1 then
         return Evoker:DevastationAoe()
     else
         return Evoker:DevastationSingle()
@@ -59,12 +77,26 @@ function Evoker:DevastationSingle()
     local gcd = fd.gcd
     local essence = fd.essence
     local maxEssenceBurst = fd.maxEssenceBurst
+    local fireBreathSpellId = fd.fireBreathSpellId
+    local eternitySurgeSpellId = fd.eternitySurgeSpellId
+
+    if currentSpell ~= fireBreathSpellId and cooldown[fireBreathSpellId].ready then
+        return fireBreathSpellId
+    end
+
+    if talents[DV.EverburningFlame] and (buff[DV.Snapfire].up or (cooldown[DV.Firestorm].ready and currentSpell ~= DV.Firestorm)) then
+        return DV.Firestorm
+    end
 
     if talents[DV.ShatteringStar] and cooldown[DV.ShatteringStar].ready then
         return DV.ShatteringStar
     end
 
-    if buff[DV.EssenceBurst].up and (maxEssenceBurst == buff[DV.EssenceBurst].count or buff[DV.EssenceBurst].remains <= gcd * 2 or essence >= 4) then
+    if talents[DV.ShatteringStar] and talents[DV.EternitySurge] and currentSpell ~= eternitySurgeSpellId and cooldown[eternitySurgeSpellId].ready then
+        return eternitySurgeSpellId
+    end
+
+    if essence >= 4 or (buff[DV.EssenceBurst].up and (maxEssenceBurst == buff[DV.EssenceBurst].count or buff[DV.EssenceBurst].remains <= gcd * 2)) then
         return DV.Disintegrate
     end
 
@@ -73,23 +105,7 @@ function Evoker:DevastationSingle()
         return DV.LivingFlame
     end
 
-    if currentSpell ~= DV.EternitySurge and talents[DV.EternitySurge] and cooldown[DV.EternitySurge].ready then
-        return DV.EternitySurge
-    end
-
-    if essence >= 5 then
-        return DV.Disintegrate
-    end
-
-    if buff[DV.EssenceBurst].up and buff[DV.EssenceBurst].remains <= 5 then
-        return DV.Disintegrate
-    end
-
-    if currentSpell ~= DV.FireBreath and cooldown[DV.FireBreath].ready then
-        return DV.FireBreath
-    end
-
-    if essence >= 3 or buff[DV.EssenceBurst].up then
+    if essence >= 5 or buff[DV.EssenceBurst].up then
         return DV.Disintegrate
     end
 
@@ -105,25 +121,55 @@ function Evoker:DevastationAoe()
     local gcd = fd.gcd
     local essence = fd.essence
     local maxEssenceBurst = fd.maxEssenceBurst
+    local fireBreathSpellId = fd.fireBreathSpellId
+    local eternitySurgeSpellId = fd.eternitySurgeSpellId
+    local targets = fd.targets
 
-    if buff[DV.Snapfire].up then
-        return DV.Firestorm
+    if currentSpell ~= fireBreathSpellId and cooldown[fireBreathSpellId].ready then
+        return fireBreathSpellId
     end
 
-    if buff[DV.EssenceBurst].up and (maxEssenceBurst == buff[DV.EssenceBurst].count or buff[DV.EssenceBurst].remains <= gcd * 2 or essence >= 5) then
-        return DV.Pyre
+    if talents[DV.ShatteringStar] and cooldown[DV.ShatteringStar].ready then
+        return DV.ShatteringStar
     end
 
-    if talents[DV.Firestorm] and currentSpell ~= DV.Firestorm and cooldown[DV.Firestorm].ready then
-        return DV.Firestorm
+    if talents[DV.EternitySurge] and currentSpell ~= eternitySurgeSpellId and cooldown[eternitySurgeSpellId].ready then
+        return eternitySurgeSpellId
     end
 
-    if talents[DV.EternitySurge] and currentSpell ~= DV.EternitySurge and cooldown[DV.EternitySurge].ready then
-        return DV.EternitySurge
+    local essenceSpender
+    local essenceSpenderCost
+
+    if talents[DV.ChargedBlast] then
+        if not buff[DV.Dragonrage].up or targets < 3 then
+            if (targets == 2 and buff[DV.ChargedBlastBuff] == 20) or (targets == 3 and buff[DV.ChargedBlastBuff] >= 10) or targets >= 4 then
+                essenceSpender = DV.Pyre
+            else
+                essenceSpender = DV.Disintegrate
+            end
+        else
+            essenceSpender = DV.Pyre
+        end
+    else
+        if not buff[DV.Dragonrage].up then
+            if targets >= 4 then
+                essenceSpender = DV.Pyre
+            else
+                essenceSpender = DV.Disintegrate
+            end
+        else
+            essenceSpender = DV.Pyre
+        end
     end
 
-    if currentSpell ~= DV.FireBreath and cooldown[DV.FireBreath].ready then
-        return DV.FireBreath
+    if essenceSpender == DV.Pyre then
+        essenceSpenderCost = getSpellCost(DV.Pyre, 2)
+    else
+        essenceSpenderCost = getSpellCost(DV.Disintegrate, 3)
+    end
+
+    if essence >= 4 or (buff[DV.EssenceBurst].up and (maxEssenceBurst == buff[DV.EssenceBurst].count or buff[DV.EssenceBurst].remains <= gcd * 2)) then
+        return essenceSpender
     end
 
     -- Prevent losing the buff
@@ -131,16 +177,20 @@ function Evoker:DevastationAoe()
         return DV.LivingFlame
     end
 
-    if essence >= 5 then
-        return DV.Pyre
-    end
-
     if buff[DV.EssenceBurst].up and buff[DV.EssenceBurst].remains <= 5 then
-        return DV.Pyre
+        return essenceSpender
     end
 
-    if essence >= 2 or buff[DV.EssenceBurst].up then
-        return DV.Pyre
+    if buff[DV.EssenceBurst].up or essence >= essenceSpenderCost then
+        return essenceSpender
+    end
+
+    if buff[DV.Snapfire].up then
+        return DV.Firestorm
+    end
+
+    if talents[DV.Firestorm] and currentSpell ~= DV.Firestorm and cooldown[DV.Firestorm].ready then
+        return DV.Firestorm
     end
 
     return DV.AzureStrike
