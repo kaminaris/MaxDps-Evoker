@@ -1,4 +1,4 @@
-package-as: MaxDps_Paladin
+package-as: MaxDps_Evoker
 enable-nolib-creation: no
 
 ignore:
