@@ -142,7 +142,7 @@ function Evoker:DevastationAoe()
 
     if talents[DV.ChargedBlast] then
         if not buff[DV.Dragonrage].up or targets < 3 then
-            if (targets == 2 and buff[DV.ChargedBlastBuff] == 20) or (targets == 3 and buff[DV.ChargedBlastBuff] >= 10) or targets >= 4 then
+            if (targets == 2 and buff[DV.ChargedBlastBuff].count == 20) or (targets == 3 and buff[DV.ChargedBlastBuff].count >= 10) or targets >= 4 then
                 essenceSpender = DV.Pyre
             else
                 essenceSpender = DV.Disintegrate
