@@ -54,8 +54,8 @@ function Evoker:Augmentation()
     classtable.EssenceBurstBuff = 392268
     classtable.LeapingFlamesBuff = 370901
 
-    if talents[classtable.TipTheScales] then
-        MaxDps:GlowCooldown(classtable.TipTheScales, cooldown[classtable.TipTheScales].ready)
+    if talents[classtable.TiptheScales] then
+        MaxDps:GlowCooldown(classtable.TiptheScales, cooldown[classtable.TiptheScales].ready)
     end
 
     if targets > 1  then
