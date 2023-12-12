@@ -41,7 +41,7 @@ function Evoker:Preservation()
     buff = fd.buff
     debuff = fd.debuff
     talents = fd.talents
-    targets = 1 --MaxDps:SmartAoe()
+    targets = MaxDps:SmartAoe()
     essence = UnitPower('player', PowerTypeEssence)
     targetHP = UnitHealth('target')
     targetmaxHP = UnitHealthMax('target')
@@ -62,19 +62,19 @@ end
 --Single-Target Rotation
 function Evoker:PreservationSingleTarget()
     --Cast Fire Breath on cooldown and at max rank.
-    if cooldown[classtable.FireBreath].up then
+    if cooldown[classtable.FireBreath].ready then
         return classtable.FireBreath
     end
     --Consume the Leaping Flames buff by casting Living Flame.
-    if buff[classtable.LeapingFlamesBuff].up and cooldown[classtable.LivingFlame].up then
+    if buff[classtable.LeapingFlamesBuff].up and cooldown[classtable.LivingFlame].ready then
         return classtable.LivingFlame
     end
     --Spend Essence on Disintegrate.
-    if essence >= 3 and cooldown[classtable.Disintegrate].up then
+    if essence >= 3 and cooldown[classtable.Disintegrate].ready then
         return classtable.Disintegrate
     end
     --Cast Living Flame.
-    if cooldown[classtable.LivingFlame].up then
+    if cooldown[classtable.LivingFlame].ready then
         return classtable.LivingFlame
     end
 end
@@ -82,23 +82,23 @@ end
 --Multiple-Target Rotation
 function Evoker:PreservationMultiTarget()
     --Cast Fire Breath on cooldown and at max rank.
-    if cooldown[classtable.FireBreath].up then
+    if cooldown[classtable.FireBreath].ready then
         return classtable.FireBreath
     end
     --Consume the Leaping Flames buff by casting Living Flame.
-    if buff[classtable.LeapingFlamesBuff].up and cooldown[classtable.LivingFlame].up then
+    if buff[classtable.LeapingFlamesBuff].up and cooldown[classtable.LivingFlame].ready then
         return classtable.LivingFlame
     end
     --Cast Azure Strike on 3+ targets.
-    if cooldown[classtable.AzureStrike].up then
+    if cooldown[classtable.AzureStrike].ready then
         return classtable.AzureStrike
     end
     --Spend Essence on Disintegrate.
-    if essence >= 3 and cooldown[classtable.Disintegrate].up then
+    if essence >= 3 and cooldown[classtable.Disintegrate].ready then
         return classtable.Disintegrate
     end
     --Cast Living Flame.
-    if cooldown[classtable.LivingFlame].up then
+    if cooldown[classtable.LivingFlame].ready then
         return classtable.LivingFlame
     end
 end
