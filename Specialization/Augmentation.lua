@@ -69,7 +69,7 @@ end
 --Single-Target Rotation
 function Evoker:AugmentationSingleTarget()
     --Use Prescience on the next targets, you would like to receive Ebon Might if you will cap on Prescience charges within the next 3 globals and use all charges if you will recast Ebon Might within the next 3 globals. Do not cast Prescience if you will overcap by more than 1 stack of Trembling Earth.
-    if talents[classtable.Prescience] and cooldown[classtable.Prescience].charges > 1 then
+    if talents[classtable.Prescience] and cooldown[classtable.Prescience].charges >= 2 then
         return classtable.Prescience
     end
     --Use Ebon Might if Ebon Might's remaining duration is less than 5.5s. This is slightly longer than the pandemic duration, but this leads to more overall uptime by having more Ebon Might casts.
@@ -101,7 +101,7 @@ function Evoker:AugmentationSingleTarget()
         return classtable.VerdantEmbrace
     end
     --Cast Living Flame.
-    if talents[classtable.LivingFlame] and cooldown[classtable.LivingFlame].ready then
+    if cooldown[classtable.LivingFlame].ready then
         return classtable.LivingFlame
     end
     --If you need to move while casting, use Hover. If you have no charges of Hover left, then use Azure Strike.
@@ -113,7 +113,7 @@ end
 --Multiple-Target Rotation
 function Evoker:AugmentationMultiTarget()
     --Use Prescience on the next targets, you would like to receive Ebon Might if you will cap on Prescience charges within the next 3 globals and use all charges if you will recast Ebon Might within the next 3 globals. Do not cast Prescience if you will overcap by more than 1 stack of Trembling Earth.
-    if talents[classtable.Prescience] and cooldown[classtable.Prescience].charges > 1 then
+    if talents[classtable.Prescience] and cooldown[classtable.Prescience].charges >= 2 then
         return classtable.Prescience
     end
     --Use Ebon Might if Ebon Might's remaining duration is less than 5.5s. This is slightly longer than the pandemic duration, but this leads to more overall uptime by having more Ebon Might casts.
@@ -145,7 +145,7 @@ function Evoker:AugmentationMultiTarget()
         return classtable.VerdantEmbrace
     end
     --Cast Living Flame.
-    if talents[classtable.LivingFlame] and cooldown[classtable.LivingFlame].ready then
+    if cooldown[classtable.LivingFlame].ready then
         return classtable.LivingFlame
     end
     --If you need to move while casting, use Hover. If you have no charges of Hover left, then use Azure Strike.
