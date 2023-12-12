@@ -1,197 +1,145 @@
-local _, addonTable = ...;
+
+local _, addonTable = ...
 
 --- @type MaxDps
-if not MaxDps then return end;
+if not MaxDps then return end
 
-local Evoker = addonTable.Evoker;
-local MaxDps = MaxDps;
+local Evoker = addonTable.Evoker
+local MaxDps = MaxDps
+local UnitPower = UnitPower
+local UnitHealth = UnitHealth
+local UnitAura = UnitAura
+local GetSpellDescription = GetSpellDescription
+local UnitHealthMax = UnitHealthMax
+local UnitPowerMax = UnitPowerMax
+local PowerTypeEssence = Enum.PowerType.Essence
 
-local DV = {
-    TipTheScales = 370553,
-    Dragonrage = 375087,
-    ShatteringStar = 370452,
-    EternitySurge = 359073,
-    EternitySurgeFontOfMagic = 382411,
-    FireBreath = 357208,
-    FireBreathFontOfMagic = 382266,
-    FontOfMagic = 375783,
-    Disintegrate = 356995,
-    LivingFlame = 361469,
-    AzureStrike = 362969,
-    EssenceBurst = 359618,
-    Firestorm = 368847,
-    Pyre = 357211,
-    Burnout = 375802,
-    ShatteringStar = 370452,
-    EssenceAttunement = 375722,
-    Snapfire = 370818,
-    EverburningFlame = 370819,
-    ChargedBlast = 370455,
-    ChargedBlastBuff = 370454
-};
+local fd
+local cooldown
+local buff
+local debuff
+local talents
+local timetodie
+local targets
+local essence
+local targetHP
+local targetmaxHP
+local targethealthPerc
+local curentHP
+local maxHP
+local healthPerc
 
-setmetatable(DV, Evoker.spellMeta);
-
-local function getSpellCost(spellId, defaultCost)
-    local cost = GetSpellPowerCost(spellId);
-    if cost ~= nil then
-        return cost[1].cost;
-    end
-
-    return defaultCost
-end
+local className, classFilename, classId = UnitClass('player')
+local currentSpec = GetSpecialization()
+local currentSpecName = currentSpec and select(2, GetSpecializationInfo(currentSpec)) or "None"
+local classtable
 
 function Evoker:Devastation()
-    local fd = MaxDps.FrameData;
-    fd.essence = UnitPower('player', Enum.PowerType.Essence)
-    local talents = fd.talents
-    fd.maxEssenceBurst = talents[DV.EssenceAttunement] and 2 or 1
-    local cooldown = fd.cooldown
+    fd = MaxDps.FrameData
+    cooldown = fd.cooldown
+    buff = fd.buff
+    debuff = fd.debuff
+    talents = fd.talents
+    timetodie = fd.timeToDie
+    targets = MaxDps:SmartAoe()
+    essence = UnitPower('player', PowerTypeEssence)
+    targetHP = UnitHealth('target')
+    targetmaxHP = UnitHealthMax('target')
+    targethealthPerc = (targetHP / targetmaxHP) * 100
+    curentHP = UnitHealth('player')
+    maxHP = UnitHealthMax('player')
+    healthPerc = (curentHP / maxHP) * 100
+    classtable = MaxDps.SpellTable
+    classtable.BurnoutBuff = 375802
+    classtable.EssenceBurstBuff = 359618
+    classtable.IridescenceBlue = 386399
 
-    fd.fireBreathSpellId = talents[DV.FontOfMagic] and DV.FireBreathFontOfMagic or DV.FireBreath
-    fd.eternitySurgeSpellId = talents[DV.FontOfMagic] and DV.EternitySurgeFontOfMagic or DV.EternitySurge
+    MaxDps:GlowCooldown(classtable.Dragonrage, cooldown[classtable.TiptheScales].ready)
 
-    if talents[DV.Dragonrage] then
-        MaxDps:GlowCooldown(DV.Dragonrage, cooldown[DV.Dragonrage].ready)
+    MaxDps:GlowCooldown(classtable.TiptheScales, cooldown[classtable.TiptheScales].ready)
+
+    --setmetatable(classtable, Warrior.spellMeta)
+    if targets > 2  then
+        return Evoker:DevastationMultiTarget()
     end
-
-    if talents[DV.TipTheScales] then
-        MaxDps:GlowCooldown(DV.TipTheScales, cooldown[DV.TipTheScales].ready)
-    end
-
-    fd.targets = MaxDps:SmartAoe()
-
-    if fd.targets > 1 then
-        return Evoker:DevastationAoe()
-    else
-        return Evoker:DevastationSingle()
-    end
+    return Evoker:DevastationSingleTarget()
 end
 
-function Evoker:DevastationSingle()
-    local fd = MaxDps.FrameData;
-    local cooldown = fd.cooldown
-    local talents = fd.talents
-    local buff = fd.buff
-    local currentSpell = fd.currentSpell
-    local gcd = fd.gcd
-    local essence = fd.essence
-    local maxEssenceBurst = fd.maxEssenceBurst
-    local fireBreathSpellId = fd.fireBreathSpellId
-    local eternitySurgeSpellId = fd.eternitySurgeSpellId
-
-    if currentSpell ~= fireBreathSpellId and cooldown[fireBreathSpellId].ready then
-        return fireBreathSpellId
+--Single-Target Rotation
+function Evoker:DevastationSingleTarget()
+    --Cast Fire Breath at empower level 1. If Dragonrage is available soon, skip this step as you will need to save it.
+    if talents[classtable.Dragonrage] and cooldown[classtable.Dragonrage].duration >= 5 and cooldown[classtable.FireBreath].ready then
+        return classtable.FireBreath
     end
-
-    if talents[DV.EverburningFlame] and (buff[DV.Snapfire].up or (cooldown[DV.Firestorm].ready and currentSpell ~= DV.Firestorm)) then
-        return DV.Firestorm
+    --If the targets will not live for the full duration of the Fire Breath DoT then cast Fire Breath at a higher empowerment to not lose any DPS.
+    --Cast Shattering Star.
+    if talents[classtable.ShatteringStar] and cooldown[classtable.ShatteringStar].ready then
+        return classtable.ShatteringStar
     end
-
-    if talents[DV.ShatteringStar] and cooldown[DV.ShatteringStar].ready then
-        return DV.ShatteringStar
+    --Cast Eternity Surge at empower level 1. If Dragonrage is available soon, skip this step as you will need to save it.
+    if talents[classtable.EternitySurge] and cooldown[classtable.EternitySurge].duration >= 5 and cooldown[classtable.EternitySurge].ready then
+        return classtable.EternitySurge
     end
-
-    if talents[DV.ShatteringStar] and talents[DV.EternitySurge] and currentSpell ~= eternitySurgeSpellId and cooldown[eternitySurgeSpellId].ready then
-        return eternitySurgeSpellId
+    --Aim to have 1 Essence Burst stack for when Shattering Star comes off cooldown to have your Disintegrate deal even more damage.
+    --Cast Living Flame to consume Burnout procs.
+    if talents[classtable.Burnout] and buff[classtable.BurnoutBuff].up and cooldown[classtable.LivingFlame].ready then
+        return classtable.LivingFlame
     end
-
-    if essence >= 4 or (buff[DV.EssenceBurst].up and (maxEssenceBurst == buff[DV.EssenceBurst].count or buff[DV.EssenceBurst].remains <= gcd * 2)) then
-        return DV.Disintegrate
+    --Spend all of your Essence on Disintegrate.
+    if (essence >= 3 or buff[classtable.EssenceBurstBuff].up) and cooldown[classtable.Disintegrate].ready then
+        return classtable.Disintegrate
     end
-
-    -- Prevent losing the buff
-    if buff[DV.Burnout].up then
-        return DV.LivingFlame
+    --Cast Living Flame to consume Burnout procs.
+    if talents[classtable.Burnout] and buff[classtable.BurnoutBuff].up and cooldown[classtable.LivingFlame].ready then
+        return classtable.LivingFlame
     end
-
-    if essence >= 5 or buff[DV.EssenceBurst].up then
-        return DV.Disintegrate
+    --Cast Living Flame as a filler ability until you have enough Essence for Disintegrate.
+    if cooldown[classtable.LivingFlame].ready then
+        return classtable.LivingFlame
     end
-
-    return DV.LivingFlame
+    --Avoid using Azure Strike whilst the Iridescence Blue buff is up to ensure that Disintegrate is empowered.
+    if talents[classtable.Iridescence] and not buff[classtable.IridescenceBlue] and cooldown[classtable.AzureStrike].ready then
+        return classtable.AzureStrike
+    end
+    --If you need to move while casting, use Hover. If you have no charges of Hover left, then use Azure Strike.
 end
 
-function Evoker:DevastationAoe()
-    local fd = MaxDps.FrameData;
-    local cooldown = fd.cooldown
-    local talents = fd.talents
-    local buff = fd.buff
-    local currentSpell = fd.currentSpell
-    local gcd = fd.gcd
-    local essence = fd.essence
-    local maxEssenceBurst = fd.maxEssenceBurst
-    local fireBreathSpellId = fd.fireBreathSpellId
-    local eternitySurgeSpellId = fd.eternitySurgeSpellId
-    local targets = fd.targets
-
-    if currentSpell ~= fireBreathSpellId and cooldown[fireBreathSpellId].ready then
-        return fireBreathSpellId
+--Multi-Target Rotation
+function Evoker:DevastationMultiTarget()
+    --Cast Fire Breath at empower level 1.
+    if cooldown[classtable.FireBreath].ready then
+        return classtable.FireBreath
     end
-
-    if talents[DV.ShatteringStar] and cooldown[DV.ShatteringStar].ready then
-        return DV.ShatteringStar
+    --If the targets will not live for the full duration of the Fire Breath DoT then cast Fire Breath at a higher empowerment to not lose any DPS.
+    --Cast Shattering Star.
+    if talents[classtable.ShatteringStar] and cooldown[classtable.ShatteringStar].ready then
+        return classtable.ShatteringStar
     end
-
-    if talents[DV.EternitySurge] and currentSpell ~= eternitySurgeSpellId and cooldown[eternitySurgeSpellId].ready then
-        return eternitySurgeSpellId
+    --Cast Eternity Surge at higher empower levels, depending on your target count.
+    if talents[classtable.EternitySurge] and cooldown[classtable.EternitySurge].ready then
+        return classtable.EternitySurge
     end
-
-    local essenceSpender
-    local essenceSpenderCost
-
-    if talents[DV.ChargedBlast] then
-        if not buff[DV.Dragonrage].up or targets < 3 then
-            if (targets == 2 and buff[DV.ChargedBlastBuff].count == 20) or (targets == 3 and buff[DV.ChargedBlastBuff].count >= 10) or targets >= 4 then
-                essenceSpender = DV.Pyre
-            else
-                essenceSpender = DV.Disintegrate
-            end
-        else
-            essenceSpender = DV.Pyre
-        end
-    else
-        if not buff[DV.Dragonrage].up then
-            if targets >= 4 then
-                essenceSpender = DV.Pyre
-            else
-                essenceSpender = DV.Disintegrate
-            end
-        else
-            essenceSpender = DV.Pyre
-        end
+    --Cast Azure Strike to generate Essence Burst procs.
+    if not buff[classtable.EssenceBurstBuff] and cooldown[classtable.AzureStrike].ready then
+        return classtable.AzureStrike
     end
-
-    if essenceSpender == DV.Pyre then
-        essenceSpenderCost = getSpellCost(DV.Pyre, 2)
-    else
-        essenceSpenderCost = getSpellCost(DV.Disintegrate, 3)
+    --Cast Pyre as your Essence spender on 3 targets with otherwise cast Disintegrate.
+    if (essence >= 2 or buff[classtable.EssenceBurstBuff].up) and cooldown[classtable.Pyre].ready then
+        return classtable.Pyre
     end
-
-    if essence >= 4 or (buff[DV.EssenceBurst].up and (maxEssenceBurst == buff[DV.EssenceBurst].count or buff[DV.EssenceBurst].remains <= gcd * 2)) then
-        return essenceSpender
+    --Cast Firestorm.
+    if talents[classtable.Firestorm] and cooldown[classtable.Firestorm].ready then
+        return classtable.Firestorm
     end
-
-    -- Prevent losing the buff
-    if buff[DV.Burnout].up then
-        return DV.LivingFlame
+    --Cast Living Flame to consume the Burnout procs to try and get a Snapfire proc.
+    if talents[classtable.Burnout] and buff[classtable.BurnoutBuff].up and cooldown[classtable.LivingFlame].ready then
+        return classtable.LivingFlame
     end
-
-    if buff[DV.EssenceBurst].up and buff[DV.EssenceBurst].remains <= 5 then
-        return essenceSpender
+    --Cast Shattering Star when it comes off cooldown.
+    if talents[classtable.ShatteringStar] and cooldown[classtable.ShatteringStar].ready then
+        return classtable.ShatteringStar
     end
-
-    if buff[DV.EssenceBurst].up or essence >= essenceSpenderCost then
-        return essenceSpender
+    if cooldown[classtable.LivingFlame].ready then
+        return classtable.LivingFlame
     end
-
-    if buff[DV.Snapfire].up then
-        return DV.Firestorm
-    end
-
-    if talents[DV.Firestorm] and currentSpell ~= DV.Firestorm and cooldown[DV.Firestorm].ready then
-        return DV.Firestorm
-    end
-
-    return DV.AzureStrike
 end
