@@ -17,13 +17,13 @@ Evoker.spellMeta = {
 function Evoker:Enable()
 	if MaxDps.Spec == 1 then
 		MaxDps.NextSpell = Evoker.Devastation;
-		MaxDps:Print(MaxDps.Colors.Info .. 'Evoker Devastation');
+		MaxDps:Print(MaxDps.Colors.Info .. 'Evoker Devastation', "info");
 	elseif MaxDps.Spec == 2 then
 		MaxDps.NextSpell = Evoker.Preservation;
-		MaxDps:Print(MaxDps.Colors.Info .. 'Evoker Preservation');
+		MaxDps:Print(MaxDps.Colors.Info .. 'Evoker Preservation', "info");
 	elseif MaxDps.Spec == 3 then
 		MaxDps.NextSpell = Evoker.Augmentation;
-		MaxDps:Print(MaxDps.Colors.Info .. 'Evoker Augmentation');
+		MaxDps:Print(MaxDps.Colors.Info .. 'Evoker Augmentation', "info");
 	end
 
 	return true;
