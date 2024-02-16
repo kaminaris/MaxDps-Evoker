@@ -1,5 +1,5 @@
 ## Title: MaxDps_Evoker
-## Version: 10.0.9
+## Version: 10.0.10
 ## Author: Kaminaris, Skynet
 ## Interface: 100205
 ## Dependencies: MaxDps
