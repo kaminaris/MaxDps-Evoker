@@ -53,13 +53,16 @@ function Evoker:Devastation()
     classtable.BurnoutBuff = 375802
     classtable.EssenceBurstBuff = 359618
     classtable.IridescenceBlue = 386399
-    if talents[classtable.HeatWave] then
-        classtable.FireBreath = 357208
-    else
+    --EternitySurge Needs Seperate Entry as it is a talent and modified by another talent
+    if talents[classtable.FontofMagic] then
         classtable.FireBreath = 382266
+        classtable.EternitySurgeSpell = 382411
+    elseif not talents[classtable.FontofMagic] then
+        classtable.FireBreath = 357208
+        classtable.EternitySurgeSpell = 359073
     end
 
-    MaxDps:GlowCooldown(classtable.Dragonrage, cooldown[classtable.TiptheScales].ready)
+    --MaxDps:GlowCooldown(classtable.Dragonrage, cooldown[classtable.TiptheScales].ready)
 
     MaxDps:GlowCooldown(classtable.TiptheScales, cooldown[classtable.TiptheScales].ready)
 
@@ -72,6 +75,9 @@ end
 
 --Single-Target Rotation
 function Evoker:DevastationSingleTarget()
+    if talents[classtable.Dragonrage] and (cooldown[classtable.FireBreath].ready or cooldown[classtable.EternitySurgeSpell].ready) and cooldown[classtable.Dragonrage].ready then
+        return classtable.Dragonrage
+    end
     --Cast Fire Breath at empower level 1. If Dragonrage is available soon, skip this step as you will need to save it.
     if talents[classtable.Dragonrage] and cooldown[classtable.Dragonrage].duration >= 5 and cooldown[classtable.FireBreath].ready then
         return classtable.FireBreath
@@ -82,8 +88,8 @@ function Evoker:DevastationSingleTarget()
         return classtable.ShatteringStar
     end
     --Cast Eternity Surge at empower level 1. If Dragonrage is available soon, skip this step as you will need to save it.
-    if talents[classtable.EternitySurge] and cooldown[classtable.EternitySurge].duration >= 5 and cooldown[classtable.EternitySurge].ready then
-        return classtable.EternitySurge
+    if talents[classtable.EternitySurge] and cooldown[classtable.Dragonrage].duration >= 5 and cooldown[classtable.EternitySurgeSpell].ready then
+        return classtable.EternitySurgeSpell
     end
     --Aim to have 1 Essence Burst stack for when Shattering Star comes off cooldown to have your Disintegrate deal even more damage.
     --Cast Living Flame to consume Burnout procs.
@@ -111,6 +117,9 @@ end
 
 --Multi-Target Rotation
 function Evoker:DevastationMultiTarget()
+    if talents[classtable.Dragonrage] and (cooldown[classtable.FireBreath].ready or cooldown[classtable.EternitySurgeSpell].ready) and cooldown[classtable.Dragonrage].ready then
+        return classtable.Dragonrage
+    end
     --Cast Fire Breath at empower level 1.
     if cooldown[classtable.FireBreath].ready then
         return classtable.FireBreath
@@ -121,8 +130,8 @@ function Evoker:DevastationMultiTarget()
         return classtable.ShatteringStar
     end
     --Cast Eternity Surge at higher empower levels, depending on your target count.
-    if talents[classtable.EternitySurge] and cooldown[classtable.EternitySurge].ready then
-        return classtable.EternitySurge
+    if talents[classtable.EternitySurge] and cooldown[classtable.EternitySurgeSpell].ready then
+        return classtable.EternitySurgeSpell
     end
     --Cast Azure Strike to generate Essence Burst procs.
     if not buff[classtable.EssenceBurstBuff] and cooldown[classtable.AzureStrike].ready then
