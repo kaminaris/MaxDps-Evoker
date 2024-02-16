@@ -53,6 +53,11 @@ function Evoker:Devastation()
     classtable.BurnoutBuff = 375802
     classtable.EssenceBurstBuff = 359618
     classtable.IridescenceBlue = 386399
+    if talents[classtable.HeatWave] then
+        classtable.FireBreath = 357208
+    else
+        classtable.FireBreath = 382266
+    end
 
     MaxDps:GlowCooldown(classtable.Dragonrage, cooldown[classtable.TiptheScales].ready)
 
