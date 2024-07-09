@@ -5,6 +5,7 @@
 ## Dependencies: MaxDps
 ## LoadOnDemand: 1
 ## X-Curse-Project-ID: 704538
+## X-Wago-ID: b6mbw9KP
 
 Main.lua
 Specialization\Augmentation.lua
