@@ -2,6 +2,7 @@ local _, addonTable = ...
 local Evoker = addonTable.Evoker
 local MaxDps = _G.MaxDps
 if not MaxDps then return end
+local setSpell
 
 local UnitPower = UnitPower
 local UnitHealth = UnitHealth
@@ -59,6 +60,9 @@ local classtable
 local LibRangeCheck = LibStub('LibRangeCheck-3.0', true)
 
 local Essence
+local EssenceMax
+local EssenceDeficit
+local EssenceTimeToMax
 local Mana
 local ManaMax
 local ManaDeficit
@@ -71,350 +75,231 @@ local trinket_1_sync
 local trinket_2_sync
 local trinket_1_manual
 local trinket_2_manual
+local trinket_1_ogcd_cast
+local trinket_2_ogcd_cast
 local trinket_1_exclude
 local trinket_2_exclude
 local trinket_priority
+local damage_trinket_priority
 local r1_cast_time
-local dr_prep_time_aoe
-local dr_prep_time_st
+local dr_prep_time_aoe = 4
+local dr_prep_time_st = 8
 local has_external_pi
 local next_dragonrage
-
-local function CheckSpellCosts(spell,spellstring)
-    if not IsSpellKnownOrOverridesKnown(spell) then return false end
-    if spellstring == 'TouchofDeath' or spellstring == 'KillShot' then
-        if targethealthPerc < 15 then
-            return true
-        else
-            return false
-        end
-    end
-    if spellstring == 'HammerofWrath' then
-        if ( (classtable.AvengingWrathBuff and buff[classtable.AvengingWrathBuff].up) or (classtable.FinalVerdictBuff and buff[classtable.FinalVerdictBuff].up) ) then
-            return true
-        end
-        if targethealthPerc < 20 then
-            return true
-        else
-            return false
-        end
-    end
-    if spellstring == 'Execute' then
-        if (classtable.SuddenDeathBuff and buff[classtable.SuddenDeathBuff].up) then
-            return true
-        end
-        if targethealthPerc < 35 then
-            return true
-        else
-            return false
-        end
-    end
-    local costs = C_Spell.GetSpellPowerCost(spell)
-    if type(costs) ~= 'table' and spellstring then return true end
-    for i,costtable in pairs(costs) do
-        if UnitPower('player', costtable.type) < costtable.cost then
-            return false
-        end
-    end
-    return true
-end
-local function MaxGetSpellCost(spell,power)
-    local costs = C_Spell.GetSpellPowerCost(spell)
-    if type(costs) ~= 'table' then return 0 end
-    for i,costtable in pairs(costs) do
-        if costtable.name == power then
-            return costtable.cost
-        end
-    end
-    return 0
-end
-
-
-
-local function CheckEquipped(checkName)
-    for i=1,14 do
-        local itemID = GetInventoryItemID('player', i)
-        local itemName = itemID and C_Item.GetItemInfo(itemID) or ''
-        if checkName == itemName then
-            return true
-        end
-    end
-    return false
-end
-
-
-
-
-local function CheckTrinketNames(checkName)
-    --if slot == 1 then
-    --    slot = 13
-    --end
-    --if slot == 2 then
-    --    slot = 14
-    --end
-    for i=13,14 do
-        local itemID = GetInventoryItemID('player', i)
-        local itemName = C_Item.GetItemInfo(itemID)
-        if checkName == itemName then
-            return true
-        end
-    end
-    return false
-end
-
-
-local function CheckTrinketCooldown(slot)
-    if slot == 1 then
-        slot = 13
-    end
-    if slot == 2 then
-        slot = 14
-    end
-    if slot == 13 or slot == 14 then
-        local itemID = GetInventoryItemID('player', slot)
-        local _, duration, _ = C_Item.GetItemCooldown(itemID)
-        if duration == 0 then return true else return false end
-    else
-        local tOneitemID = GetInventoryItemID('player', 13)
-        local tTwoitemID = GetInventoryItemID('player', 14)
-        local tOneitemName = C_Item.GetItemInfo(tOneitemID)
-        local tTwoitemName = C_Item.GetItemInfo(tTwoitemID)
-        if tOneitemName == slot then
-            local _, duration, _ = C_Item.GetItemCooldown(tOneitemID)
-            if duration == 0 then return true else return false end
-        end
-        if tTwoitemName == slot then
-            local _, duration, _ = C_Item.GetItemCooldown(tTwoitemID)
-            if duration == 0 then return true else return false end
-        end
-    end
-end
-
-
+local pool_for_id = false
+local bombardment_clause
 function Devastation:precombat()
-    --if (MaxDps:FindSpell(classtable.Flask) and CheckSpellCosts(classtable.Flask, 'Flask')) and cooldown[classtable.Flask].ready then
-    --    return classtable.Flask
-    --end
-    --if (MaxDps:FindSpell(classtable.Food) and CheckSpellCosts(classtable.Food, 'Food')) and cooldown[classtable.Food].ready then
-    --    return classtable.Food
-    --end
-    --if (MaxDps:FindSpell(classtable.Augmentation) and CheckSpellCosts(classtable.Augmentation, 'Augmentation')) and cooldown[classtable.Augmentation].ready then
-    --    return classtable.Augmentation
-    --end
-    --if (MaxDps:FindSpell(classtable.SnapshotStats) and CheckSpellCosts(classtable.SnapshotStats, 'SnapshotStats')) and cooldown[classtable.SnapshotStats].ready then
-    --    return classtable.SnapshotStats
-    --end
-    --trinket_1_buffs = trinket.1.has_buff.intellect or trinket.1.has_buff.mastery or trinket.1.has_buff.versatility or trinket.1.has_buff.haste or trinket.1.has_buff.crit or CheckTrinketNames('MirrorofFracturedTomorrows')
-    --trinket_2_buffs = trinket.2.has_buff.intellect or trinket.2.has_buff.mastery or trinket.2.has_buff.versatility or trinket.2.has_buff.haste or trinket.2.has_buff.crit or CheckTrinketNames('MirrorofFracturedTomorrows')
-    --if trinket_1_buffs and ( trinket.1.cooldown.duration % % cooldown[classtable.Dragonrage].duration == 0 or cooldown[classtable.Dragonrage].duration % % trinket.1.cooldown.duration == 0 ) then
-    --    trinket_1_sync = 1
-    --else
-    --    trinket_1_sync = 0.5
-    --end
-    --if trinket_2_buffs and ( trinket.2.cooldown.duration % % cooldown[classtable.Dragonrage].duration == 0 or cooldown[classtable.Dragonrage].duration % % trinket.2.cooldown.duration == 0 ) then
-    --    trinket_2_sync = 1
-    --else
-    --    trinket_2_sync = 0.5
-    --end
-    --trinket_1_manual = CheckTrinketNames('BelorrelostheSuncaller') or CheckTrinketNames('NymuesUnravelingSpindle')
-    --trinket_2_manual = CheckTrinketNames('BelorrelostheSuncaller') or CheckTrinketNames('NymuesUnravelingSpindle')
-    --trinket_1_exclude = CheckTrinketNames('RubyWhelpShell') or CheckTrinketNames('WhisperingIncarnateIcon')
-    --trinket_2_exclude = CheckTrinketNames('RubyWhelpShell') or CheckTrinketNames('WhisperingIncarnateIcon')
-    --if not trinket_1_buffs and trinket_2_buffs or trinket_2_buffs and ( ( trinket.2.cooldown.duration % trinket.2.proc.any_dps.duration ) * ( 1.5 + trinket.2.has_buff.intellect ) * ( trinket_2_sync ) ) >( ( trinket.1.cooldown.duration % trinket.1.proc.any_dps.duration ) * ( 1.5 + trinket.1.has_buff.intellect ) * ( trinket_1_sync ) ) then
-    --    trinket_priority = 2
-    --else
-    --    trinket_priority = 1
-    --end
     r1_cast_time = 1.0 * SpellHaste
     dr_prep_time_aoe = 4
-    dr_prep_time_st = 13
-    --has_external_pi = cooldown[classtable.InvokePowerInfusion0].duration >0
-    --if (MaxDps:FindSpell(classtable.VerdantEmbrace) and CheckSpellCosts(classtable.VerdantEmbrace, 'VerdantEmbrace')) and (talents[classtable.ScarletAdaptation]) and cooldown[classtable.VerdantEmbrace].ready then
-    --    return classtable.VerdantEmbrace
+    dr_prep_time_st = 8
+    has_external_pi = cooldown[classtable.InvokePowerInfusion0].duration >0
+    --if (MaxDps:CheckSpellUsable(classtable.VerdantEmbrace, 'VerdantEmbrace')) and (talents[classtable.ScarletAdaptation]) and cooldown[classtable.VerdantEmbrace].ready and not UnitAffectingCombat('player') then
+    --    if not setSpell then setSpell = classtable.VerdantEmbrace end
     --end
-    --if (MaxDps:FindSpell(classtable.Firestorm) and CheckSpellCosts(classtable.Firestorm, 'Firestorm')) and (talents[classtable.Firestorm]) and cooldown[classtable.Firestorm].ready then
-    --    return classtable.Firestorm
-    --end
-    --if (MaxDps:FindSpell(classtable.LivingFlame) and CheckSpellCosts(classtable.LivingFlame, 'LivingFlame')) and (not talents[classtable.Firestorm]) and cooldown[classtable.LivingFlame].ready then
-    --    return classtable.LivingFlame
-    --end
+    if (MaxDps:CheckSpellUsable(classtable.Firestorm, 'Firestorm') and talents[classtable.Firestorm]) and (talents[classtable.Firestorm] and ( not talents[classtable.Engulf] or not talents[classtable.RubyEmbers] )) and cooldown[classtable.Firestorm].ready and not UnitAffectingCombat('player') then
+        if not setSpell then setSpell = classtable.Firestorm end
+    end
+    if (MaxDps:CheckSpellUsable(classtable.LivingFlame, 'LivingFlame')) and (not talents[classtable.Firestorm] or talents[classtable.Engulf] and talents[classtable.RubyEmbers]) and cooldown[classtable.LivingFlame].ready and not UnitAffectingCombat('player') then
+        if not setSpell then setSpell = classtable.LivingFlame end
+    end
 end
 function Devastation:aoe()
-    if (MaxDps:FindSpell(classtable.ShatteringStar) and CheckSpellCosts(classtable.ShatteringStar, 'ShatteringStar')) and (cooldown[classtable.Dragonrage].up) and cooldown[classtable.ShatteringStar].ready then
-        return classtable.ShatteringStar
+    if (MaxDps:CheckSpellUsable(classtable.ShatteringStar, 'ShatteringStar') and talents[classtable.ShatteringStar]) and (cooldown[classtable.Dragonrage].ready and talents[classtable.ArcaneVigor] or talents[classtable.EternitysSpan] and targets <= 3) and cooldown[classtable.ShatteringStar].ready then
+        if not setSpell then setSpell = classtable.ShatteringStar end
     end
-    if (MaxDps:FindSpell(classtable.Firestorm) and CheckSpellCosts(classtable.Firestorm, 'Firestorm')) and (talents[classtable.RagingInferno] and cooldown[classtable.Dragonrage].remains <= gcd and ( ttd >= 32 or ttd <30 )) and cooldown[classtable.Firestorm].ready then
-        return classtable.Firestorm
+    if (MaxDps:CheckSpellUsable(classtable.Hover, 'Hover')) and (math.huge <6 and not buff[classtable.HoverBuff].up and gcd >= 0.5 and ( buff[classtable.MassDisintegrateStacksBuff].up and talents[classtable.MassDisintegrate] or targets <= 4 )) and cooldown[classtable.Hover].ready then
+        if not setSpell then setSpell = classtable.Hover end
     end
-    if (MaxDps:FindSpell(classtable.Dragonrage) and CheckSpellCosts(classtable.Dragonrage, 'Dragonrage')) and (ttd >= 32 or ttd <30) and cooldown[classtable.Dragonrage].ready then
-        return classtable.Dragonrage
+    if (MaxDps:CheckSpellUsable(classtable.Firestorm, 'Firestorm') and talents[classtable.Firestorm]) and (buff[classtable.SnapfireBuff].up) and cooldown[classtable.Firestorm].ready then
+        if not setSpell then setSpell = classtable.Firestorm end
     end
-    if (MaxDps:FindSpell(classtable.TiptheScales) and CheckSpellCosts(classtable.TiptheScales, 'TiptheScales')) and (buff[classtable.DragonrageBuff].up and ( targets <= 3 + 3 * (talents[classtable.EternitysSpan] and 1 or 0) or not cooldown[classtable.FireBreath].up )) and cooldown[classtable.TiptheScales].ready then
-        return classtable.TiptheScales
+    if (MaxDps:CheckSpellUsable(classtable.Firestorm, 'Firestorm') and talents[classtable.Firestorm]) and (talents[classtable.FeedtheFlames]) and cooldown[classtable.Firestorm].ready then
+        if not setSpell then setSpell = classtable.Firestorm end
     end
-    --next_dragonrage > dr_prep_time_aoe
-    if (( not talents[classtable.Dragonrage] or (true) or not talents[classtable.Animosity] ) and ( ( buff[classtable.PowerSwellBuff].remains <r1_cast_time or ( not talents[classtable.Volatility] and targets == 3 ) ) and buff[classtable.BlazingShardsBuff].remains <r1_cast_time or buff[classtable.DragonrageBuff].up ) and ( ttd >= 8 or ttd <30 )) then
-        local fbCheck = Devastation:fb()
-        if fbCheck then
-            return Devastation:fb()
-        end
+    if (talents[classtable.Dragonrage] and cooldown[classtable.Dragonrage].ready and talents[classtable.Iridescence] or (MaxDps.Spells[classtable.FireBreath] and cooldown[classtable.FireBreath].ready and targets >=3)) then
+        Devastation:fb()
     end
-    if (buff[classtable.DragonrageBuff].up or not talents[classtable.Dragonrage] or ( cooldown[classtable.Dragonrage].remains >dr_prep_time_aoe and ( buff[classtable.PowerSwellBuff].remains <r1_cast_time or ( not talents[classtable.Volatility] and targets == 3 ) ) and buff[classtable.BlazingShardsBuff].remains <r1_cast_time ) and ( ttd >= 8 or ttd <30 )) then
-        local esCheck = Devastation:es()
-        if esCheck then
-            return Devastation:es()
-        end
+    if (MaxDps:CheckSpellUsable(classtable.DeepBreath, 'DeepBreath')) and (talents[classtable.Maneuverability] and talents[classtable.MeltArmor]) and cooldown[classtable.DeepBreath].ready then
+        if not setSpell then setSpell = classtable.DeepBreath end
     end
-    if (MaxDps:FindSpell(classtable.DeepBreath) and CheckSpellCosts(classtable.DeepBreath, 'DeepBreath')) and (not buff[classtable.DragonrageBuff].up and EssenceDeficit >3) and cooldown[classtable.DeepBreath].ready then
-        return classtable.DeepBreath
+    if (MaxDps:CheckSpellUsable(classtable.Dragonrage, 'Dragonrage') and talents[classtable.Dragonrage]) and cooldown[classtable.Dragonrage].ready then
+        if not setSpell then setSpell = classtable.Dragonrage end
     end
-    if (MaxDps:FindSpell(classtable.ShatteringStar) and CheckSpellCosts(classtable.ShatteringStar, 'ShatteringStar')) and (buff[classtable.EssenceBurstBuff].count <EssenceBurstBuffMaxStacks or not talents[classtable.ArcaneVigor]) and cooldown[classtable.ShatteringStar].ready then
-        return classtable.ShatteringStar
+    if (MaxDps:CheckSpellUsable(classtable.TiptheScales, 'TiptheScales')) and (buff[classtable.DragonrageBuff].up and ( ( targets <= 3 + 3 * (talents[classtable.EternitysSpan] and talents[classtable.EternitysSpan] or 0) and not talents[classtable.Engulf] ) or not cooldown[classtable.FireBreath].ready )) and cooldown[classtable.TiptheScales].ready then
+        if not setSpell then setSpell = classtable.TiptheScales end
     end
-    if (MaxDps:FindSpell(classtable.Firestorm) and CheckSpellCosts(classtable.Firestorm, 'Firestorm')) and (talents[classtable.RagingInferno] and ( cooldown[classtable.Dragonrage].remains >= 20 or cooldown[classtable.Dragonrage].remains <= 10 ) and ( buff[classtable.EssenceBurstBuff].up or Essence >= 2 or cooldown[classtable.Dragonrage].remains <= 10 ) or buff[classtable.SnapfireBuff].up) and cooldown[classtable.Firestorm].ready then
-        return classtable.Firestorm
+    if (( not talents[classtable.Dragonrage] or buff[classtable.DragonrageBuff].up or cooldown[classtable.Dragonrage].remains >dr_prep_time_aoe or not talents[classtable.Animosity] ) and ( ttd >= 8 or ttd <30 )) then
+        Devastation:fb()
     end
-    if (MaxDps:FindSpell(classtable.Pyre) and CheckSpellCosts(classtable.Pyre, 'Pyre')) and (targets >= 4) and cooldown[classtable.Pyre].ready then
-        return classtable.Pyre
+    if (( not talents[classtable.Dragonrage] or buff[classtable.DragonrageBuff].up or cooldown[classtable.Dragonrage].remains >dr_prep_time_aoe or not talents[classtable.Animosity] ) and ( ttd >= 8 or ttd <30 ) or (MaxDps.Spells[classtable.EternitySurge] and cooldown[classtable.EternitySurge].ready and targets <3)) then
+        Devastation:es()
     end
-    if (MaxDps:FindSpell(classtable.Pyre) and CheckSpellCosts(classtable.Pyre, 'Pyre')) and (targets >= 3 and talents[classtable.Volatility]) and cooldown[classtable.Pyre].ready then
-        return classtable.Pyre
+    if (MaxDps:CheckSpellUsable(classtable.DeepBreath, 'DeepBreath')) and (not buff[classtable.DragonrageBuff].up and EssenceDeficit >3) and cooldown[classtable.DeepBreath].ready then
+        if not setSpell then setSpell = classtable.DeepBreath end
     end
-    if (MaxDps:FindSpell(classtable.Pyre) and CheckSpellCosts(classtable.Pyre, 'Pyre')) and (buff[classtable.ChargedBlastBuff].count >= 15) and cooldown[classtable.Pyre].ready then
-        return classtable.Pyre
+    if (MaxDps:CheckSpellUsable(classtable.ShatteringStar, 'ShatteringStar') and talents[classtable.ShatteringStar]) and (buff[classtable.EssenceBurstBuff].count <1 and talents[classtable.ArcaneVigor] or talents[classtable.EternitysSpan] and targets <= 3) and cooldown[classtable.ShatteringStar].ready then
+        if not setSpell then setSpell = classtable.ShatteringStar end
     end
-    if (MaxDps:FindSpell(classtable.LivingFlame) and CheckSpellCosts(classtable.LivingFlame, 'LivingFlame')) and (( not talents[classtable.Burnout] or buff[classtable.BurnoutBuff].up or targets >= 4 and cooldown[classtable.FireBreath].remains <= gcd * 3 or buff[classtable.ScarletAdaptationBuff].up ) and buff[classtable.LeapingFlamesBuff].up and not buff[classtable.EssenceBurstBuff].up and Essence <EssenceMax - 1) and cooldown[classtable.LivingFlame].ready then
-        return classtable.LivingFlame
+    if (MaxDps:CheckSpellUsable(classtable.Engulf, 'Engulf') and talents[classtable.Engulf]) and (debuff[classtable.FireBreathDamageDeBuff].up and ( not talents[classtable.ShatteringStar] or debuff[classtable.ShatteringStarDebuffDeBuff].up ) and cooldown[classtable.Dragonrage].remains >= 27) and cooldown[classtable.Engulf].ready then
+        if not setSpell then setSpell = classtable.Engulf end
     end
-    if (MaxDps:FindSpell(classtable.Disintegrate) and CheckSpellCosts(classtable.Disintegrate, 'Disintegrate')) and cooldown[classtable.Disintegrate].ready then
-        return classtable.Disintegrate
+    if (MaxDps:CheckSpellUsable(classtable.Disintegrate, 'Disintegrate')) and (buff[classtable.MassDisintegrateStacksBuff].up and talents[classtable.MassDisintegrate] and ( buff[classtable.ChargedBlastBuff].count <10 or not talents[classtable.ChargedBlast] )) and cooldown[classtable.Disintegrate].ready then
+        if not setSpell then setSpell = classtable.Disintegrate end
     end
-    if (MaxDps:FindSpell(classtable.LivingFlame) and CheckSpellCosts(classtable.LivingFlame, 'LivingFlame')) and (talents[classtable.Snapfire] and buff[classtable.BurnoutBuff].up) and cooldown[classtable.LivingFlame].ready then
-        return classtable.LivingFlame
+    if (MaxDps:CheckSpellUsable(classtable.Pyre, 'Pyre')) and (( targets >= 4 or talents[classtable.Volatility] ) and ( cooldown[classtable.Dragonrage].remains >gcd * 4 or not talents[classtable.ChargedBlast] or talents[classtable.Engulf] and ( not talents[classtable.ArcaneIntensity] or not talents[classtable.EternitysSpan] ) ) and not pool_for_id) and cooldown[classtable.Pyre].ready then
+        if not setSpell then setSpell = classtable.Pyre end
     end
-    if (MaxDps:FindSpell(classtable.Firestorm) and CheckSpellCosts(classtable.Firestorm, 'Firestorm')) and cooldown[classtable.Firestorm].ready then
-        return classtable.Firestorm
+    if (MaxDps:CheckSpellUsable(classtable.Pyre, 'Pyre')) and (buff[classtable.ChargedBlastBuff].count >= 12 and cooldown[classtable.Dragonrage].remains >gcd * 4) and cooldown[classtable.Pyre].ready then
+        if not setSpell then setSpell = classtable.Pyre end
+    end
+    if (MaxDps:CheckSpellUsable(classtable.LivingFlame, 'LivingFlame')) and (( not talents[classtable.Burnout] or buff[classtable.BurnoutBuff].up or cooldown[classtable.FireBreath].remains <= gcd * 5 or buff[classtable.ScarletAdaptationBuff].up or buff[classtable.AncientFlameBuff].up ) and buff[classtable.LeapingFlamesBuff].up and not buff[classtable.EssenceBurstBuff].up and EssenceDeficit >1) and cooldown[classtable.LivingFlame].ready then
+        if not setSpell then setSpell = classtable.LivingFlame end
+    end
+    if (MaxDps:CheckSpellUsable(classtable.Disintegrate, 'Disintegrate')) and (( math.huge >2 or buff[classtable.HoverBuff].up ) and not pool_for_id) and cooldown[classtable.Disintegrate].ready then
+        if not setSpell then setSpell = classtable.Disintegrate end
+    end
+    if (MaxDps:CheckSpellUsable(classtable.LivingFlame, 'LivingFlame')) and (talents[classtable.Snapfire] and buff[classtable.BurnoutBuff].up) and cooldown[classtable.LivingFlame].ready then
+        if not setSpell then setSpell = classtable.LivingFlame end
     end
     if (talents[classtable.AncientFlame] and not buff[classtable.AncientFlameBuff].up and not buff[classtable.DragonrageBuff].up) then
-        local greenCheck = Devastation:green()
-        if greenCheck then
-            return Devastation:green()
-        end
+        Devastation:green()
     end
-    if (MaxDps:FindSpell(classtable.AzureStrike) and CheckSpellCosts(classtable.AzureStrike, 'AzureStrike')) and (targetHP) and cooldown[classtable.AzureStrike].ready then
-        return classtable.AzureStrike
+    if (MaxDps:CheckSpellUsable(classtable.AzureStrike, 'AzureStrike')) and cooldown[classtable.AzureStrike].ready then
+        if not setSpell then setSpell = classtable.AzureStrike end
     end
 end
 function Devastation:es()
-    if (MaxDps:FindSpell(classtable.EternitySurge) and CheckSpellCosts(classtable.EternitySurge, 'EternitySurge')) and (targets <= 1 + (talents[classtable.EternitysSpan] and 1 or 0) or buff[classtable.DragonrageBuff].remains <1.75 * SpellHaste and buff[classtable.DragonrageBuff].remains >= 1 * SpellHaste or buff[classtable.DragonrageBuff].up and ( targets == 5 and not talents[classtable.FontofMagic] or targets >( 3 + (talents[classtable.FontofMagic] and 1 or 0) ) * ( 1 + (talents[classtable.EternitysSpan] and 1 or 0)) ) or targets >= 6 and not talents[classtable.EternitysSpan]) and cooldown[classtable.EternitySurge].ready then
-        return classtable.EternitySurge
+    if (MaxDps:CheckSpellUsable(classtable.EternitySurge, 'EternitySurge')) and (targets <= 1 + (talents[classtable.EternitysSpan] and talents[classtable.EternitysSpan] or 0) or buff[classtable.DragonrageBuff].remains <1.75 * SpellHaste and buff[classtable.DragonrageBuff].remains >= 1 * SpellHaste or buff[classtable.DragonrageBuff].up and ( targets >( 3 + (talents[classtable.FontofMagic] and talents[classtable.FontofMagic] or 0) ) * ( 1 + (talents[classtable.EternitysSpan] and talents[classtable.EternitysSpan] or 0) ) ) or targets >= 6 and not talents[classtable.EternitysSpan]) and cooldown[classtable.EternitySurge].ready then
+        if not setSpell then setSpell = classtable.EternitySurge end
     end
-    if (MaxDps:FindSpell(classtable.EternitySurge) and CheckSpellCosts(classtable.EternitySurge, 'EternitySurge')) and (targets <= 2 + 2 * (talents[classtable.EternitysSpan] and 1 or 0) or buff[classtable.DragonrageBuff].remains <2.5 * SpellHaste and buff[classtable.DragonrageBuff].remains >= 1.75 * SpellHaste) and cooldown[classtable.EternitySurge].ready then
-        return classtable.EternitySurge
+    if (MaxDps:CheckSpellUsable(classtable.EternitySurge, 'EternitySurge')) and (targets <= 2 + 2 * (talents[classtable.EternitysSpan] and talents[classtable.EternitysSpan] or 0) or buff[classtable.DragonrageBuff].remains <2.5 * SpellHaste and buff[classtable.DragonrageBuff].remains >= 1.75 * SpellHaste) and cooldown[classtable.EternitySurge].ready then
+        if not setSpell then setSpell = classtable.EternitySurge end
     end
-    if (MaxDps:FindSpell(classtable.EternitySurge) and CheckSpellCosts(classtable.EternitySurge, 'EternitySurge')) and (targets <= 3 + 3 * (talents[classtable.EternitysSpan] and 1 or 0) or not talents[classtable.FontofMagic] or buff[classtable.DragonrageBuff].remains <= 3.25 * SpellHaste and buff[classtable.DragonrageBuff].remains >= 2.5 * SpellHaste) and cooldown[classtable.EternitySurge].ready then
-        return classtable.EternitySurge
+    if (MaxDps:CheckSpellUsable(classtable.EternitySurge, 'EternitySurge')) and (targets <= 3 + 3 * (talents[classtable.EternitysSpan] and talents[classtable.EternitysSpan] or 0) or not talents[classtable.FontofMagic] or buff[classtable.DragonrageBuff].remains <= 3.25 * SpellHaste and buff[classtable.DragonrageBuff].remains >= 2.5 * SpellHaste) and cooldown[classtable.EternitySurge].ready then
+        if not setSpell then setSpell = classtable.EternitySurge end
     end
-    if (MaxDps:FindSpell(classtable.EternitySurge) and CheckSpellCosts(classtable.EternitySurge, 'EternitySurge')) and (targetHP) and cooldown[classtable.EternitySurge].ready then
-        return classtable.EternitySurge
+    if (MaxDps:CheckSpellUsable(classtable.EternitySurge, 'EternitySurge')) and cooldown[classtable.EternitySurge].ready then
+        if not setSpell then setSpell = classtable.EternitySurge end
     end
 end
 function Devastation:fb()
-    if (MaxDps:FindSpell(classtable.FireBreath) and CheckSpellCosts(classtable.FireBreath, 'FireBreath')) and (( buff[classtable.DragonrageBuff].up and targets <= 2 ) or ( targets == 1 and not talents[classtable.EverburningFlame] ) or ( buff[classtable.DragonrageBuff].remains <1.75 * SpellHaste and buff[classtable.DragonrageBuff].remains >= 1 * SpellHaste )) and cooldown[classtable.FireBreath].ready then
-        return classtable.FireBreath
+    if (MaxDps:CheckSpellUsable(classtable.FireBreath, 'FireBreath')) and (( buff[classtable.DragonrageBuff].remains <1.75 * SpellHaste and buff[classtable.DragonrageBuff].remains >= 1 * SpellHaste ) or targets == 1 or talents[classtable.ScorchingEmbers] and not debuff[classtable.FireBreathDamageDeBuff].up) and cooldown[classtable.FireBreath].ready then
+        if not setSpell then setSpell = classtable.FireBreath end
     end
-    if (MaxDps:FindSpell(classtable.FireBreath) and CheckSpellCosts(classtable.FireBreath, 'FireBreath')) and (( not debuff[classtable.InFirestormDeBuff].up and talents[classtable.EverburningFlame] and targets <= 3 ) or ( targets == 2 and not talents[classtable.EverburningFlame] ) or ( buff[classtable.DragonrageBuff].remains <2.5 * SpellHaste and buff[classtable.DragonrageBuff].remains >= 1.75 * SpellHaste )) and cooldown[classtable.FireBreath].ready then
-        return classtable.FireBreath
+    if (MaxDps:CheckSpellUsable(classtable.FireBreath, 'FireBreath')) and (targets == 2 or ( buff[classtable.DragonrageBuff].remains <2.5 * SpellHaste and buff[classtable.DragonrageBuff].remains >= 1.75 * SpellHaste ) or talents[classtable.ScorchingEmbers]) and cooldown[classtable.FireBreath].ready then
+        if not setSpell then setSpell = classtable.FireBreath end
     end
-    if (MaxDps:FindSpell(classtable.FireBreath) and CheckSpellCosts(classtable.FireBreath, 'FireBreath')) and (( talents[classtable.EverburningFlame] and buff[classtable.DragonrageBuff].up and targets >= 5 ) or not talents[classtable.FontofMagic] or ( debuff[classtable.InFirestormDeBuff].up and talents[classtable.EverburningFlame] and targets <= 3 ) or ( buff[classtable.DragonrageBuff].remains <= 3.25 * SpellHaste and buff[classtable.DragonrageBuff].remains >= 2.5 * SpellHaste )) and cooldown[classtable.FireBreath].ready then
-        return classtable.FireBreath
+    if (MaxDps:CheckSpellUsable(classtable.FireBreath, 'FireBreath')) and (not talents[classtable.FontofMagic] or ( buff[classtable.DragonrageBuff].remains <= 3.25 * SpellHaste and buff[classtable.DragonrageBuff].remains >= 2.5 * SpellHaste ) or talents[classtable.ScorchingEmbers]) and cooldown[classtable.FireBreath].ready then
+        if not setSpell then setSpell = classtable.FireBreath end
     end
-    if (MaxDps:FindSpell(classtable.FireBreath) and CheckSpellCosts(classtable.FireBreath, 'FireBreath')) and (targetHP) and cooldown[classtable.FireBreath].ready then
-        return classtable.FireBreath
+    if (MaxDps:CheckSpellUsable(classtable.FireBreath, 'FireBreath')) and cooldown[classtable.FireBreath].ready then
+        if not setSpell then setSpell = classtable.FireBreath end
     end
 end
 function Devastation:green()
-    --if (MaxDps:FindSpell(classtable.EmeraldBlossom) and CheckSpellCosts(classtable.EmeraldBlossom, 'EmeraldBlossom')) and cooldown[classtable.EmeraldBlossom].ready then
-    --    return classtable.EmeraldBlossom
-    --end
-    --if (MaxDps:FindSpell(classtable.VerdantEmbrace) and CheckSpellCosts(classtable.VerdantEmbrace, 'VerdantEmbrace')) and cooldown[classtable.VerdantEmbrace].ready then
-    --    return classtable.VerdantEmbrace
-    --end
+    if (MaxDps:CheckSpellUsable(classtable.EmeraldBlossom, 'EmeraldBlossom')) and cooldown[classtable.EmeraldBlossom].ready then
+        if not setSpell then setSpell = classtable.EmeraldBlossom end
+    end
+    if (MaxDps:CheckSpellUsable(classtable.VerdantEmbrace, 'VerdantEmbrace')) and cooldown[classtable.VerdantEmbrace].ready then
+        if not setSpell then setSpell = classtable.VerdantEmbrace end
+    end
 end
 function Devastation:st()
-    --if (MaxDps:FindSpell(classtable.Hover) and CheckSpellCosts(classtable.Hover, 'Hover')) and (raid_event.movement.in <2 and not buff[classtable.HoverBuff].up) and cooldown[classtable.Hover].ready then
-    --    return classtable.Hover
-    --end
-    if (MaxDps:FindSpell(classtable.Firestorm) and CheckSpellCosts(classtable.Firestorm, 'Firestorm')) and (buff[classtable.SnapfireBuff].up) and cooldown[classtable.Firestorm].ready then
-        return classtable.Firestorm
+    if (MaxDps:CheckSpellUsable(classtable.Hover, 'Hover')) and (math.huge <6 and not buff[classtable.HoverBuff].up and gcd >= 0.5) and cooldown[classtable.Hover].ready then
+        if not setSpell then setSpell = classtable.Hover end
     end
-    if (MaxDps:FindSpell(classtable.Dragonrage) and CheckSpellCosts(classtable.Dragonrage, 'Dragonrage')) and (cooldown[classtable.FireBreath].remains <4 and cooldown[classtable.EternitySurge].remains <10 and ttd >= 32 or ttd <32) and cooldown[classtable.Dragonrage].ready then
-        return classtable.Dragonrage
+    if (MaxDps:CheckSpellUsable(classtable.DeepBreath, 'DeepBreath')) and (talents[classtable.Maneuverability] and talents[classtable.MeltArmor]) and cooldown[classtable.DeepBreath].ready then
+        if not setSpell then setSpell = classtable.DeepBreath end
     end
-    if (MaxDps:FindSpell(classtable.TiptheScales) and CheckSpellCosts(classtable.TiptheScales, 'TiptheScales')) and (buff[classtable.DragonrageBuff].up and ( ( ( not talents[classtable.FontofMagic] or talents[classtable.EverburningFlame] ) and cooldown[classtable.FireBreath].remains <cooldown[classtable.EternitySurge].remains and buff[classtable.DragonrageBuff].remains <14 ) or ( cooldown[classtable.EternitySurge].remains <cooldown[classtable.FireBreath].remains and not talents[classtable.EverburningFlame] and talents[classtable.FontofMagic] ) )) and cooldown[classtable.TiptheScales].ready then
-        return classtable.TiptheScales
+    if (MaxDps:CheckSpellUsable(classtable.Dragonrage, 'Dragonrage') and talents[classtable.Dragonrage]) and (( cooldown[classtable.FireBreath].remains <4 or cooldown[classtable.EternitySurge].remains <4 and ( not (MaxDps.tier and MaxDps.tier[32].count >= 4) or not talents[classtable.MassDisintegrate] ) ) and ( cooldown[classtable.FireBreath].remains <8 and ( cooldown[classtable.EternitySurge].remains <8 or (MaxDps.tier and MaxDps.tier[32].count >= 4) and talents[classtable.MassDisintegrate] ) ) and ttd >= 32 or MaxDps:boss() and ttd <32) and cooldown[classtable.Dragonrage].ready then
+        if not setSpell then setSpell = classtable.Dragonrage end
     end
-    --next_dragonrage > dr_prep_time_st
-    if (( not talents[classtable.Dragonrage] or (true) or not talents[classtable.Animosity] ) and ( buff[classtable.BlazingShardsBuff].remains <r1_cast_time or buff[classtable.DragonrageBuff].up ) and ( not cooldown[classtable.EternitySurge].up or not talents[classtable.EventHorizon] or not buff[classtable.DragonrageBuff].up ) and ( ttd >= 8 or ttd <30 )) then
-        local fbCheck = Devastation:fb()
-        if fbCheck then
-            return Devastation:fb()
-        end
+    if (MaxDps:CheckSpellUsable(classtable.TiptheScales, 'TiptheScales')) and (( not talents[classtable.Dragonrage] or buff[classtable.DragonrageBuff].up ) and ( cooldown[classtable.FireBreath].remains <cooldown[classtable.EternitySurge].remains or ( cooldown[classtable.EternitySurge].remains <cooldown[classtable.FireBreath].remains and talents[classtable.FontofMagic] ) )) and cooldown[classtable.TiptheScales].ready then
+        if not setSpell then setSpell = classtable.TiptheScales end
     end
-    if (MaxDps:FindSpell(classtable.ShatteringStar) and CheckSpellCosts(classtable.ShatteringStar, 'ShatteringStar')) and (( buff[classtable.EssenceBurstBuff].count <EssenceBurstBuffMaxStacks or not talents[classtable.ArcaneVigor] ) and ( not cooldown[classtable.EternitySurge].up or not buff[classtable.DragonrageBuff].up or not talents[classtable.EventHorizon] )) and cooldown[classtable.ShatteringStar].ready then
-        return classtable.ShatteringStar
+    if (MaxDps:CheckSpellUsable(classtable.ShatteringStar, 'ShatteringStar') and talents[classtable.ShatteringStar]) and (( buff[classtable.EssenceBurstBuff].count <1 or not talents[classtable.ArcaneVigor] ) and ( not cooldown[classtable.EternitySurge].ready or not buff[classtable.DragonrageBuff].up or talents[classtable.MassDisintegrate] or not talents[classtable.EventHorizon] and ( not talents[classtable.TravelingFlame] or not cooldown[classtable.Engulf].ready ) ) and ( cooldown[classtable.Dragonrage].remains >= 15 or cooldown[classtable.FireBreath].remains >= 8 or buff[classtable.DragonrageBuff].up and ( cooldown[classtable.FireBreath].remains <= gcd and buff[classtable.TiptheScalesBuff].up or cooldown[classtable.TiptheScales].remains >= 15 and not buff[classtable.TiptheScalesBuff].up ) or not talents[classtable.TravelingFlame] ) and ( not cooldown[classtable.FireBreath].ready or buff[classtable.TiptheScalesBuff].up )) and cooldown[classtable.ShatteringStar].ready then
+        if not setSpell then setSpell = classtable.ShatteringStar end
     end
-    --next_dragonrage > dr_prep_time_st
-    if (( not talents[classtable.Dragonrage] or (true) or not talents[classtable.Animosity] ) and ( buff[classtable.BlazingShardsBuff].remains <r1_cast_time or buff[classtable.DragonrageBuff].up ) and ( ttd >= 8 or ttd <30 )) then
-        local esCheck = Devastation:es()
-        if esCheck then
-            return Devastation:es()
-        end
+    if talents[classtable.Bombardments] then
+        bombardment_clause = ( not talents[classtable.Bombardments] or talents[classtable.ExtendedBattle] or debuff[classtable.BombardmentsDeBuff].remains <= 7 and not buff[classtable.MassDisintegrateStacksBuff].up or buff[classtable.DragonrageBuff].up )
     end
-    --if (MaxDps:FindSpell(classtable.Wait) and CheckSpellCosts(classtable.Wait, 'Wait')) and (talents[classtable.Animosity] and buff[classtable.DragonrageBuff].up and buff[classtable.DragonrageBuff].remains <gcd + r1_cast_time * not buff[classtable.TiptheScalesBuff].up and buff[classtable.DragonrageBuff].remains - cooldown[classtable.FireBreath].remains >= r1_cast_time * not buff[classtable.TiptheScalesBuff].up) and cooldown[classtable.Wait].ready then
-    --    return classtable.Wait
-    --end
-    --if (MaxDps:FindSpell(classtable.Wait) and CheckSpellCosts(classtable.Wait, 'Wait')) and (talents[classtable.Animosity] and buff[classtable.DragonrageBuff].up and buff[classtable.DragonrageBuff].remains <gcd + r1_cast_time and buff[classtable.DragonrageBuff].remains - cooldown[classtable.EternitySurge].remains >r1_cast_time * not buff[classtable.TiptheScalesBuff].up) and cooldown[classtable.Wait].ready then
-    --    return classtable.Wait
-    --end
-    if (MaxDps:FindSpell(classtable.LivingFlame) and CheckSpellCosts(classtable.LivingFlame, 'LivingFlame')) and (buff[classtable.DragonrageBuff].up and buff[classtable.DragonrageBuff].remains <( EssenceBurstBuffMaxStacks - buff[classtable.EssenceBurstBuff].count ) * gcd and buff[classtable.BurnoutBuff].up) and cooldown[classtable.LivingFlame].ready then
-        return classtable.LivingFlame
+    if (( not talents[classtable.Dragonrage] or next_dragonrage >dr_prep_time_st or not talents[classtable.Animosity] ) and ( not cooldown[classtable.EternitySurge].ready or not talents[classtable.EventHorizon] and not talents[classtable.TravelingFlame] or talents[classtable.MassDisintegrate] or not buff[classtable.DragonrageBuff].up ) and ( ttd >= 8 or ttd <30 ) or (MaxDps.Spells[classtable.FireBreath] and cooldown[classtable.FireBreath].ready and targets >=3)) then
+        Devastation:fb()
     end
-    if (MaxDps:FindSpell(classtable.AzureStrike) and CheckSpellCosts(classtable.AzureStrike, 'AzureStrike')) and (buff[classtable.DragonrageBuff].up and buff[classtable.DragonrageBuff].remains <( EssenceBurstBuffMaxStacks - buff[classtable.EssenceBurstBuff].count ) * gcd) and cooldown[classtable.AzureStrike].ready then
-        return classtable.AzureStrike
+    if (( not talents[classtable.Dragonrage] or next_dragonrage >dr_prep_time_st or not talents[classtable.Animosity] or (MaxDps.tier and MaxDps.tier[32].count >= 4) and talents[classtable.MassDisintegrate] ) and ( ttd >= 8 or ttd <30 ) or (MaxDps.Spells[classtable.EternitySurge] and cooldown[classtable.EternitySurge].ready and targets <3)) then
+        Devastation:es()
     end
-    if (MaxDps:FindSpell(classtable.LivingFlame) and CheckSpellCosts(classtable.LivingFlame, 'LivingFlame')) and (buff[classtable.BurnoutBuff].up and ( buff[classtable.LeapingFlamesBuff].up and not buff[classtable.EssenceBurstBuff].up or not buff[classtable.LeapingFlamesBuff].up and buff[classtable.EssenceBurstBuff].count <EssenceBurstBuffMaxStacks ) and EssenceDeficit >= 2) and cooldown[classtable.LivingFlame].ready then
-        return classtable.LivingFlame
+    if (MaxDps:CheckSpellUsable(classtable.LivingFlame, 'LivingFlame')) and (buff[classtable.DragonrageBuff].up and buff[classtable.DragonrageBuff].remains <( 1 - buff[classtable.EssenceBurstBuff].count ) * gcd and buff[classtable.BurnoutBuff].up) and cooldown[classtable.LivingFlame].ready then
+        if not setSpell then setSpell = classtable.LivingFlame end
     end
-    if (MaxDps:FindSpell(classtable.Pyre) and CheckSpellCosts(classtable.Pyre, 'Pyre')) and (debuff[classtable.InFirestormDeBuff].up and talents[classtable.RagingInferno] and buff[classtable.ChargedBlastBuff].count == 20 and targets >= 2) and cooldown[classtable.Pyre].ready then
-        return classtable.Pyre
+    if (MaxDps:CheckSpellUsable(classtable.AzureStrike, 'AzureStrike')) and (buff[classtable.DragonrageBuff].up and buff[classtable.DragonrageBuff].remains <( 1 - buff[classtable.EssenceBurstBuff].count ) * gcd) and cooldown[classtable.AzureStrike].ready then
+        if not setSpell then setSpell = classtable.AzureStrike end
     end
-    if (MaxDps:FindSpell(classtable.Disintegrate) and CheckSpellCosts(classtable.Disintegrate, 'Disintegrate')) and cooldown[classtable.Disintegrate].ready then
-        return classtable.Disintegrate
+    if (MaxDps:CheckSpellUsable(classtable.Engulf, 'Engulf') and talents[classtable.Engulf]) and (debuff[classtable.FireBreathDamageDeBuff].up and ( not talents[classtable.Enkindle] or debuff[classtable.EnkindleDeBuff].up and ( (MaxDps.spellHistory[1] == classtable.Disintegrate) or (MaxDps.spellHistory[1] == classtable.Engulf) or (MaxDps.spellHistory[2] == classtable.Disintegrate) or not talents[classtable.FantheFlames] or targets >1 ) ) and ( not talents[classtable.RubyEmbers] or debuff[classtable.LivingFlameDamageDeBuff].up ) and ( not talents[classtable.ShatteringStar] or debuff[classtable.ShatteringStarDebuffDeBuff].up ) and cooldown[classtable.Dragonrage].remains >= 27) and cooldown[classtable.Engulf].ready then
+        if not setSpell then setSpell = classtable.Engulf end
     end
-    if (MaxDps:FindSpell(classtable.Firestorm) and CheckSpellCosts(classtable.Firestorm, 'Firestorm')) and (not buff[classtable.DragonrageBuff].up and not debuff[classtable.ShatteringStarDebuffDeBuff].up) and cooldown[classtable.Firestorm].ready then
-        return classtable.Firestorm
+    if (MaxDps:CheckSpellUsable(classtable.LivingFlame, 'LivingFlame')) and (buff[classtable.BurnoutBuff].up and buff[classtable.LeapingFlamesBuff].up and not buff[classtable.EssenceBurstBuff].up and buff[classtable.DragonrageBuff].up) and cooldown[classtable.LivingFlame].ready then
+        if not setSpell then setSpell = classtable.LivingFlame end
     end
-    if (MaxDps:FindSpell(classtable.DeepBreath) and CheckSpellCosts(classtable.DeepBreath, 'DeepBreath')) and (not buff[classtable.DragonrageBuff].up and targets >= 2) and cooldown[classtable.DeepBreath].ready then
-        return classtable.DeepBreath
+    if (MaxDps:CheckSpellUsable(classtable.Firestorm, 'Firestorm') and talents[classtable.Firestorm]) and (not buff[classtable.DragonrageBuff].up and not debuff[classtable.ShatteringStarDebuffDeBuff].up and talents[classtable.FeedtheFlames] and ( ( not talents[classtable.Dragonrage] or cooldown[classtable.Dragonrage].remains >= 10 ) and ( Essence >= 3 or buff[classtable.EssenceBurstBuff].up or talents[classtable.ShatteringStar] and cooldown[classtable.ShatteringStar].remains <= 6 ) or talents[classtable.Dragonrage] and cooldown[classtable.Dragonrage].remains <= ( classtable and classtable.Firestorm and GetSpellInfo(classtable.Firestorm).castTime /1000 or 0) and cooldown[classtable.FireBreath].remains <6 and cooldown[classtable.EternitySurge].remains <12 ) and not debuff[classtable.InFirestormDeBuff].up) and cooldown[classtable.Firestorm].ready then
+        if not setSpell then setSpell = classtable.Firestorm end
     end
-    if (MaxDps:FindSpell(classtable.DeepBreath) and CheckSpellCosts(classtable.DeepBreath, 'DeepBreath')) and (not buff[classtable.DragonrageBuff].up and talents[classtable.ImminentDestruction] and not debuff[classtable.ShatteringStarDebuffDeBuff].up) and cooldown[classtable.DeepBreath].ready then
-        return classtable.DeepBreath
+    if (MaxDps:CheckSpellUsable(classtable.DeepBreath, 'DeepBreath')) and (not buff[classtable.DragonrageBuff].up and ( talents[classtable.ImminentDestruction] and not debuff[classtable.ShatteringStarDebuffDeBuff].up or talents[classtable.MeltArmor] and talents[classtable.Maneuverability] )) and cooldown[classtable.DeepBreath].ready then
+        if not setSpell then setSpell = classtable.DeepBreath end
     end
-    if (talents[classtable.AncientFlame] and not buff[classtable.AncientFlameBuff].up and not buff[classtable.ShatteringStarDebuffBuff].up and talents[classtable.ScarletAdaptation] and not buff[classtable.DragonrageBuff].up) then
-        local greenCheck = Devastation:green()
-        if greenCheck then
-            return Devastation:green()
-        end
+    if (MaxDps:CheckSpellUsable(classtable.Pyre, 'Pyre')) and (debuff[classtable.InFirestormDeBuff].up and talents[classtable.FeedtheFlames] and buff[classtable.ChargedBlastBuff].count == 20 and targets >= 2) and cooldown[classtable.Pyre].ready then
+        if not setSpell then setSpell = classtable.Pyre end
     end
-    if (MaxDps:FindSpell(classtable.LivingFlame) and CheckSpellCosts(classtable.LivingFlame, 'LivingFlame')) and (not buff[classtable.DragonrageBuff].up or ( buff[classtable.IridescenceRedBuff].remains >timeShift or buff[classtable.IridescenceBlueBuff].up ) and targets == 1) and cooldown[classtable.LivingFlame].ready then
-        return classtable.LivingFlame
+    if (MaxDps:CheckSpellUsable(classtable.Disintegrate, 'Disintegrate')) and (( math.huge >2 or buff[classtable.HoverBuff].up ) and buff[classtable.MassDisintegrateStacksBuff].up and talents[classtable.MassDisintegrate]) and cooldown[classtable.Disintegrate].ready then
+        if not setSpell then setSpell = classtable.Disintegrate end
     end
-    if (MaxDps:FindSpell(classtable.AzureStrike) and CheckSpellCosts(classtable.AzureStrike, 'AzureStrike')) and cooldown[classtable.AzureStrike].ready then
-        return classtable.AzureStrike
+    if (MaxDps:CheckSpellUsable(classtable.Disintegrate, 'Disintegrate')) and (( math.huge >2 or buff[classtable.HoverBuff].up ) and not pool_for_id) and cooldown[classtable.Disintegrate].ready then
+        if not setSpell then setSpell = classtable.Disintegrate end
+    end
+    if (MaxDps:CheckSpellUsable(classtable.Firestorm, 'Firestorm') and talents[classtable.Firestorm]) and (buff[classtable.SnapfireBuff].up or not debuff[classtable.InFirestormDeBuff].up and talents[classtable.FeedtheFlames]) and cooldown[classtable.Firestorm].ready then
+        if not setSpell then setSpell = classtable.Firestorm end
+    end
+    if (MaxDps:CheckSpellUsable(classtable.DeepBreath, 'DeepBreath')) and (not buff[classtable.DragonrageBuff].up and targets >= 2 and ( ( math.huge >= 120 and not talents[classtable.OnyxLegacy] ) or ( math.huge >= 60 and talents[classtable.OnyxLegacy] ) )) and cooldown[classtable.DeepBreath].ready then
+        if not setSpell then setSpell = classtable.DeepBreath end
+    end
+    if (MaxDps:CheckSpellUsable(classtable.DeepBreath, 'DeepBreath')) and (not buff[classtable.DragonrageBuff].up and ( talents[classtable.ImminentDestruction] and not debuff[classtable.ShatteringStarDebuffDeBuff].up or talents[classtable.MeltArmor] or talents[classtable.Maneuverability] )) and cooldown[classtable.DeepBreath].ready then
+        if not setSpell then setSpell = classtable.DeepBreath end
+    end
+    if (talents[classtable.AncientFlame] and not buff[classtable.AncientFlameBuff].up and not buff[classtable.ShatteringStarDebuffBuff].up and talents[classtable.ScarletAdaptation] and not buff[classtable.DragonrageBuff].up and not buff[classtable.BurnoutBuff].up) then
+        Devastation:green()
+    end
+    if (MaxDps:CheckSpellUsable(classtable.LivingFlame, 'LivingFlame')) and (not buff[classtable.DragonrageBuff].up or ( buff[classtable.IridescenceRedBuff].remains >timeShift or not talents[classtable.EngulfingBlaze] or buff[classtable.IridescenceBlueBuff].up or buff[classtable.BurnoutBuff].up or buff[classtable.LeapingFlamesBuff].up and cooldown[classtable.FireBreath].remains <= 5 ) and targets == 1) and cooldown[classtable.LivingFlame].ready then
+        if not setSpell then setSpell = classtable.LivingFlame end
+    end
+    if (MaxDps:CheckSpellUsable(classtable.AzureStrike, 'AzureStrike')) and cooldown[classtable.AzureStrike].ready then
+        if not setSpell then setSpell = classtable.AzureStrike end
     end
 end
+function Devastation:trinkets()
+end
 
+
+local function ClearCDs()
+    MaxDps:GlowCooldown(classtable.Quell, false)
+end
+
+function Devastation:callaction()
+    next_dragonrage = cooldown[classtable.Dragonrage].remains-- <( ( cooldown[classtable.EternitySurge].remains - 8 ) >( cooldown[classtable.FireBreath].remains - 8 ) and 1 or 0)
+    if talents[classtable.ImminentDestruction] and talents[classtable.MeltArmor] and talents[classtable.Maneuverability] then
+        pool_for_id = cooldown[classtable.DeepBreath].remains <8 and EssenceDeficit >= 1 and not buff[classtable.EssenceBurstBuff].up
+    end
+    if (MaxDps:CheckSpellUsable(classtable.Quell, 'Quell')) and cooldown[classtable.Quell].ready then
+        MaxDps:GlowCooldown(classtable.Quell, ( select(8,UnitCastingInfo('target')) ~= nil and not select(8,UnitCastingInfo('target')) or select(7,UnitChannelInfo('target')) ~= nil and not select(7,UnitChannelInfo('target'))) )
+    end
+    if (MaxDps:CheckSpellUsable(classtable.Unravel, 'Unravel')) and cooldown[classtable.Unravel].ready then
+        if not setSpell then setSpell = classtable.Unravel end
+    end
+    Devastation:trinkets()
+    if (targets >= 3) then
+        Devastation:aoe()
+    end
+    Devastation:st()
+end
 function Evoker:Devastation()
     fd = MaxDps.FrameData
     ttd = (fd.timeToDie and fd.timeToDie) or 500
@@ -424,118 +309,93 @@ function Evoker:Devastation()
     buff = fd.buff
     debuff = fd.debuff
     talents = fd.talents
-    targets = 1--MaxDps:SmartAoe()
+    targets = MaxDps:SmartAoe()
     Mana = UnitPower('player', ManaPT)
     ManaMax = UnitPowerMax('player', ManaPT)
     ManaDeficit = ManaMax - Mana
     targetHP = UnitHealth('target')
     targetmaxHP = UnitHealthMax('target')
-    targethealthPerc = (targetHP / targetmaxHP) * 100
+    targethealthPerc = (targetHP >0 and targetmaxHP >0 and (targetHP / targetmaxHP) * 100) or 100
     curentHP = UnitHealth('player')
     maxHP = UnitHealthMax('player')
     healthPerc = (curentHP / maxHP) * 100
     timeInCombat = MaxDps.combatTime or 0
     classtable = MaxDps.SpellTable
-    SpellHaste = UnitSpellHaste('target')
+    SpellHaste = UnitSpellHaste('player')
     SpellCrit = GetCritChance()
     Essence = UnitPower('player', EssencePT)
     EssenceMax = UnitPowerMax('player', EssencePT)
     EssenceDeficit = EssenceMax - Essence
-    classtable.DragonrageBuff = 375087
-    classtable.PowerSwellBuff = 376850
-    classtable.BlazingShardsBuff = 405519
-    classtable.EssenceBurstBuff = 359618
+    EssenceRegen = GetPowerRegenForPowerType(Enum.PowerType.Essence)
+    EssenceTimeToMax = EssenceDeficit / EssenceRegen
+    --for spellId in pairs(MaxDps.Flags) do
+    --    self.Flags[spellId] = false
+    --    self:ClearGlowIndependent(spellId, spellId)
+    --end
+    classtable.HoverBuff = 358267
+    classtable.MassDisintegrateStacksBuff = 0
     classtable.SnapfireBuff = 370818
+    classtable.DragonrageBuff = 375087
+    classtable.EssenceBurstBuff = 359618
+    classtable.FireBreathDamageDeBuff = 0
+    classtable.ShatteringStarDebuffDeBuff = 370452
     classtable.ChargedBlastBuff = 370454
     classtable.BurnoutBuff = 375802
     classtable.ScarletAdaptationBuff = 372470
-    classtable.LeapingFlamesBuff = 370901
-    classtable.HoverBuff = 358267
     classtable.AncientFlameBuff = 375583
-    classtable.InFirestormDeBuff = 0
+    classtable.LeapingFlamesBuff = 370901
     classtable.TiptheScalesBuff = 370553
-    classtable.ShatteringStarDebuffDeBuff = 370452
+    classtable.BombardmentsDeBuff = 434300
+    classtable.EnkindleDeBuff = 444016
+    classtable.LivingFlameDamageDeBuff = 0
+    classtable.InFirestormDeBuff = 0
     classtable.ShatteringStarDebuffBuff = 370454
     classtable.IridescenceRedBuff = 386353
     classtable.IridescenceBlueBuff = 386399
-    --EternitySurge Needs Seperate Entry as it is a talent and modified by another talent
-    if talents[classtable.FontofMagic] then
-        classtable.FireBreath = 382266
-        classtable.EternitySurgeSpell = 382411
-    elseif not talents[classtable.FontofMagic] then
-        classtable.FireBreath = 357208
-        classtable.EternitySurgeSpell = 359073
+
+    local function debugg()
+        talents[classtable.ScarletAdaptation] = 1
+        talents[classtable.Firestorm] = 1
+        talents[classtable.Engulf] = 1
+        talents[classtable.RubyEmbers] = 1
+        talents[classtable.ImminentDestruction] = 1
+        talents[classtable.MeltArmor] = 1
+        talents[classtable.Maneuverability] = 1
+        talents[classtable.ArcaneVigor] = 1
+        talents[classtable.EternitysSpan] = 1
+        talents[classtable.MassDisintegrate] = 1
+        talents[classtable.FeedtheFlames] = 1
+        talents[classtable.Dragonrage] = 1
+        talents[classtable.Iridescence] = 1
+        talents[classtable.Animosity] = 1
+        talents[classtable.ShatteringStar] = 1
+        talents[classtable.ChargedBlast] = 1
+        talents[classtable.Volatility] = 1
+        talents[classtable.ArcaneIntensity] = 1
+        talents[classtable.Burnout] = 1
+        talents[classtable.Snapfire] = 1
+        talents[classtable.AncientFlame] = 1
+        talents[classtable.FontofMagic] = 1
+        talents[classtable.ScorchingEmbers] = 1
+        talents[classtable.EventHorizon] = 1
+        talents[classtable.TravelingFlame] = 1
+        talents[classtable.Bombardments] = 1
+        talents[classtable.Enkindle] = 1
+        talents[classtable.FantheFlames] = 1
+        talents[classtable.OnyxLegacy] = 1
+        talents[classtable.EngulfingBlaze] = 1
     end
 
-    if talents[classtable.EssenceAttunement] then
-        EssenceBurstBuffMaxStacks = 2
-    else
-        EssenceBurstBuffMaxStacks = 1
+
+    if MaxDps.db.global.debugMode then
+        debugg()
     end
+
+    setSpell = nil
+    ClearCDs()
 
     Devastation:precombat()
 
-    --if (MaxDps:FindSpell(classtable.Potion) and CheckSpellCosts(classtable.Potion, 'Potion')) and (buff[classtable.DragonrageBuff].up and ( not cooldown[classtable.ShatteringStar].up or targets >= 2 ) or ttd <35) and cooldown[classtable.Potion].ready then
-    --    return classtable.Potion
-    --end
-    next_dragonrage = cooldown[classtable.Dragonrage].remains and (cooldown[classtable.EternitySurge].remains > 0 and cooldown[classtable.EternitySurge].remains - 2 * gcd) or (cooldown[classtable.FireBreath].remains > 0 and cooldown[classtable.FireBreath].remains - gcd) or 0
-    --if (MaxDps:FindSpell(classtable.Quell) and CheckSpellCosts(classtable.Quell, 'Quell')) and (target.debuff.casting.up) and cooldown[classtable.Quell].ready then
-    --    return classtable.Quell
-    --end
-    if (targets >= 3) then
-        local aoeCheck = Devastation:aoe()
-        if aoeCheck then
-            return Devastation:aoe()
-        end
-    end
-    local stCheck = Devastation:st()
-    if stCheck then
-        return stCheck
-    end
-    if (talents[classtable.Dragonrage] and talents[classtable.Iridescence] and ( ttd >= 32 or ttd <30 ) and cooldown[classtable.Dragonrage].remains <= gcd) then
-        local fbCheck = Devastation:fb()
-        if fbCheck then
-            return Devastation:fb()
-        end
-    end
-    --(true)
-    if (( not talents[classtable.Dragonrage] or (true) or not talents[classtable.Animosity] ) and ( ( buff[classtable.PowerSwellBuff].remains <r1_cast_time or ( not talents[classtable.Volatility] and targets == 3 ) ) and buff[classtable.BlazingShardsBuff].remains <r1_cast_time or buff[classtable.DragonrageBuff].up ) and ( ttd >= 8 or ttd <30 )) then
-        local fbCheck = Devastation:fb()
-        if fbCheck then
-            return Devastation:fb()
-        end
-    end
-    if (buff[classtable.DragonrageBuff].up or not talents[classtable.Dragonrage] or ( cooldown[classtable.Dragonrage].remains >dr_prep_time_aoe and ( buff[classtable.PowerSwellBuff].remains <r1_cast_time or ( not talents[classtable.Volatility] and targets == 3 ) ) and buff[classtable.BlazingShardsBuff].remains <r1_cast_time ) and ( ttd >= 8 or ttd <30 )) then
-        local esCheck = Devastation:es()
-        if esCheck then
-            return Devastation:es()
-        end
-    end
-    if (talents[classtable.AncientFlame] and not buff[classtable.AncientFlameBuff].up and not buff[classtable.DragonrageBuff].up) then
-        local greenCheck = Devastation:green()
-        if greenCheck then
-            return Devastation:green()
-        end
-    end
-    --next_dragonrage > dr_prep_time_st
-    if (( not talents[classtable.Dragonrage] or (true) or not talents[classtable.Animosity] ) and ( buff[classtable.BlazingShardsBuff].remains <r1_cast_time or buff[classtable.DragonrageBuff].up ) and ( not cooldown[classtable.EternitySurge].up or not talents[classtable.EventHorizon] or not buff[classtable.DragonrageBuff].up ) and ( ttd >= 8 or ttd <30 )) then
-        local fbCheck = Devastation:fb()
-        if fbCheck then
-            return Devastation:fb()
-        end
-    end
-    --next_dragonrage > dr_prep_time_st
-    if (( not talents[classtable.Dragonrage] or (true) or not talents[classtable.Animosity] ) and ( buff[classtable.BlazingShardsBuff].remains <r1_cast_time or buff[classtable.DragonrageBuff].up ) and ( ttd >= 8 or ttd <30 )) then
-        local esCheck = Devastation:es()
-        if esCheck then
-            return Devastation:es()
-        end
-    end
-    if (talents[classtable.AncientFlame] and not buff[classtable.AncientFlameBuff].up and not buff[classtable.ShatteringStarDebuffBuff].up and talents[classtable.ScarletAdaptation] and not buff[classtable.DragonrageBuff].up) then
-        local greenCheck = Devastation:green()
-        if greenCheck then
-            return Devastation:green()
-        end
-    end
-
+    Devastation:callaction()
+    if setSpell then return setSpell end
 end
