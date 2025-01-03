@@ -120,13 +120,13 @@ function Devastation:aoe()
         Devastation:fb()
     end
     if (MaxDps:CheckSpellUsable(classtable.DeepBreath, 'DeepBreath')) and (talents[classtable.Maneuverability] and talents[classtable.MeltArmor]) and cooldown[classtable.DeepBreath].ready then
-        if not setSpell then setSpell = classtable.DeepBreath end
+        MaxDps:GlowCooldown(classtable.DeepBreath, cooldown[classtable.DeepBreath].ready)
     end
     if (MaxDps:CheckSpellUsable(classtable.Dragonrage, 'Dragonrage') and talents[classtable.Dragonrage]) and cooldown[classtable.Dragonrage].ready then
-        if not setSpell then setSpell = classtable.Dragonrage end
+        MaxDps:GlowCooldown(classtable.Dragonrage, cooldown[classtable.Dragonrage].ready)
     end
     if (MaxDps:CheckSpellUsable(classtable.TiptheScales, 'TiptheScales')) and (buff[classtable.DragonrageBuff].up and ( ( targets <= 3 + 3 * (talents[classtable.EternitysSpan] and talents[classtable.EternitysSpan] or 0) and not talents[classtable.Engulf] ) or not cooldown[classtable.FireBreath].ready )) and cooldown[classtable.TiptheScales].ready then
-        if not setSpell then setSpell = classtable.TiptheScales end
+        MaxDps:GlowCooldown(classtable.TiptheScales, cooldown[classtable.TiptheScales].ready)
     end
     if (( not talents[classtable.Dragonrage] or buff[classtable.DragonrageBuff].up or cooldown[classtable.Dragonrage].remains >dr_prep_time_aoe or not talents[classtable.Animosity] ) and ( ttd >= 8 or ttd <30 )) then
         Devastation:fb()
@@ -135,7 +135,7 @@ function Devastation:aoe()
         Devastation:es()
     end
     if (MaxDps:CheckSpellUsable(classtable.DeepBreath, 'DeepBreath')) and (not buff[classtable.DragonrageBuff].up and EssenceDeficit >3) and cooldown[classtable.DeepBreath].ready then
-        if not setSpell then setSpell = classtable.DeepBreath end
+        MaxDps:GlowCooldown(classtable.DeepBreath, cooldown[classtable.DeepBreath].ready)
     end
     if (MaxDps:CheckSpellUsable(classtable.ShatteringStar, 'ShatteringStar') and talents[classtable.ShatteringStar]) and (buff[classtable.EssenceBurstBuff].count <1 and talents[classtable.ArcaneVigor] or talents[classtable.EternitysSpan] and targets <= 3) and cooldown[classtable.ShatteringStar].ready then
         if not setSpell then setSpell = classtable.ShatteringStar end
@@ -198,10 +198,10 @@ function Devastation:fb()
 end
 function Devastation:green()
     if (MaxDps:CheckSpellUsable(classtable.EmeraldBlossom, 'EmeraldBlossom')) and cooldown[classtable.EmeraldBlossom].ready then
-        if not setSpell then setSpell = classtable.EmeraldBlossom end
+        MaxDps:GlowCooldown(classtable.EmeraldBlossom, cooldown[classtable.EmeraldBlossom].ready)
     end
     if (MaxDps:CheckSpellUsable(classtable.VerdantEmbrace, 'VerdantEmbrace')) and cooldown[classtable.VerdantEmbrace].ready then
-        if not setSpell then setSpell = classtable.VerdantEmbrace end
+        MaxDps:GlowCooldown(classtable.VerdantEmbrace, cooldown[classtable.VerdantEmbrace].ready)
     end
 end
 function Devastation:st()
@@ -209,13 +209,13 @@ function Devastation:st()
         if not setSpell then setSpell = classtable.Hover end
     end
     if (MaxDps:CheckSpellUsable(classtable.DeepBreath, 'DeepBreath')) and (talents[classtable.Maneuverability] and talents[classtable.MeltArmor]) and cooldown[classtable.DeepBreath].ready then
-        if not setSpell then setSpell = classtable.DeepBreath end
+        MaxDps:GlowCooldown(classtable.DeepBreath, cooldown[classtable.DeepBreath].ready)
     end
     if (MaxDps:CheckSpellUsable(classtable.Dragonrage, 'Dragonrage') and talents[classtable.Dragonrage]) and (( cooldown[classtable.FireBreath].remains <4 or cooldown[classtable.EternitySurge].remains <4 and ( not (MaxDps.tier and MaxDps.tier[32].count >= 4) or not talents[classtable.MassDisintegrate] ) ) and ( cooldown[classtable.FireBreath].remains <8 and ( cooldown[classtable.EternitySurge].remains <8 or (MaxDps.tier and MaxDps.tier[32].count >= 4) and talents[classtable.MassDisintegrate] ) ) and ttd >= 32 or MaxDps:boss() and ttd <32) and cooldown[classtable.Dragonrage].ready then
-        if not setSpell then setSpell = classtable.Dragonrage end
+        MaxDps:GlowCooldown(classtable.Dragonrage, cooldown[classtable.Dragonrage].ready)
     end
     if (MaxDps:CheckSpellUsable(classtable.TiptheScales, 'TiptheScales')) and (( not talents[classtable.Dragonrage] or buff[classtable.DragonrageBuff].up ) and ( cooldown[classtable.FireBreath].remains <cooldown[classtable.EternitySurge].remains or ( cooldown[classtable.EternitySurge].remains <cooldown[classtable.FireBreath].remains and talents[classtable.FontofMagic] ) )) and cooldown[classtable.TiptheScales].ready then
-        if not setSpell then setSpell = classtable.TiptheScales end
+        MaxDps:GlowCooldown(classtable.TiptheScales, cooldown[classtable.TiptheScales].ready)
     end
     if (MaxDps:CheckSpellUsable(classtable.ShatteringStar, 'ShatteringStar') and talents[classtable.ShatteringStar]) and (( buff[classtable.EssenceBurstBuff].count <1 or not talents[classtable.ArcaneVigor] ) and ( not cooldown[classtable.EternitySurge].ready or not buff[classtable.DragonrageBuff].up or talents[classtable.MassDisintegrate] or not talents[classtable.EventHorizon] and ( not talents[classtable.TravelingFlame] or not cooldown[classtable.Engulf].ready ) ) and ( cooldown[classtable.Dragonrage].remains >= 15 or cooldown[classtable.FireBreath].remains >= 8 or buff[classtable.DragonrageBuff].up and ( cooldown[classtable.FireBreath].remains <= gcd and buff[classtable.TiptheScalesBuff].up or cooldown[classtable.TiptheScales].remains >= 15 and not buff[classtable.TiptheScalesBuff].up ) or not talents[classtable.TravelingFlame] ) and ( not cooldown[classtable.FireBreath].ready or buff[classtable.TiptheScalesBuff].up )) and cooldown[classtable.ShatteringStar].ready then
         if not setSpell then setSpell = classtable.ShatteringStar end
@@ -245,7 +245,7 @@ function Devastation:st()
         if not setSpell then setSpell = classtable.Firestorm end
     end
     if (MaxDps:CheckSpellUsable(classtable.DeepBreath, 'DeepBreath')) and (not buff[classtable.DragonrageBuff].up and ( talents[classtable.ImminentDestruction] and not debuff[classtable.ShatteringStarDebuffDeBuff].up or talents[classtable.MeltArmor] and talents[classtable.Maneuverability] )) and cooldown[classtable.DeepBreath].ready then
-        if not setSpell then setSpell = classtable.DeepBreath end
+        MaxDps:GlowCooldown(classtable.DeepBreath, cooldown[classtable.DeepBreath].ready)
     end
     if (MaxDps:CheckSpellUsable(classtable.Pyre, 'Pyre')) and (debuff[classtable.InFirestormDeBuff].up and talents[classtable.FeedtheFlames] and buff[classtable.ChargedBlastBuff].count == 20 and targets >= 2) and cooldown[classtable.Pyre].ready then
         if not setSpell then setSpell = classtable.Pyre end
@@ -260,10 +260,10 @@ function Devastation:st()
         if not setSpell then setSpell = classtable.Firestorm end
     end
     if (MaxDps:CheckSpellUsable(classtable.DeepBreath, 'DeepBreath')) and (not buff[classtable.DragonrageBuff].up and targets >= 2 and ( ( math.huge >= 120 and not talents[classtable.OnyxLegacy] ) or ( math.huge >= 60 and talents[classtable.OnyxLegacy] ) )) and cooldown[classtable.DeepBreath].ready then
-        if not setSpell then setSpell = classtable.DeepBreath end
+        MaxDps:GlowCooldown(classtable.DeepBreath, cooldown[classtable.DeepBreath].ready)
     end
     if (MaxDps:CheckSpellUsable(classtable.DeepBreath, 'DeepBreath')) and (not buff[classtable.DragonrageBuff].up and ( talents[classtable.ImminentDestruction] and not debuff[classtable.ShatteringStarDebuffDeBuff].up or talents[classtable.MeltArmor] or talents[classtable.Maneuverability] )) and cooldown[classtable.DeepBreath].ready then
-        if not setSpell then setSpell = classtable.DeepBreath end
+        MaxDps:GlowCooldown(classtable.DeepBreath, cooldown[classtable.DeepBreath].ready)
     end
     if (talents[classtable.AncientFlame] and not buff[classtable.AncientFlameBuff].up and not buff[classtable.ShatteringStarDebuffBuff].up and talents[classtable.ScarletAdaptation] and not buff[classtable.DragonrageBuff].up and not buff[classtable.BurnoutBuff].up) then
         Devastation:green()
@@ -280,7 +280,12 @@ end
 
 
 local function ClearCDs()
+    MaxDps:GlowCooldown(classtable.VerdantEmbrace, false)
     MaxDps:GlowCooldown(classtable.Quell, false)
+    MaxDps:GlowCooldown(classtable.DeepBreath, false)
+    MaxDps:GlowCooldown(classtable.Dragonrage, false)
+    MaxDps:GlowCooldown(classtable.TiptheScales, false)
+    MaxDps:GlowCooldown(classtable.EmeraldBlossom, false)
 end
 
 function Devastation:callaction()
