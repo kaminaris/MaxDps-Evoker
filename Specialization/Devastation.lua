@@ -164,7 +164,7 @@ function Devastation:aoe()
     if (MaxDps:CheckSpellUsable(classtable.ShatteringStar, 'ShatteringStar')) and (( buff[classtable.EssenceBurstBuff].count <1 and talents[classtable.ArcaneVigor] or talents[classtable.EternitysSpan] and targets <= 3 or (MaxDps.tier and MaxDps.tier[33].count >= 4) and buff[classtable.JackpotBuff].count <2 ) and ( not talents[classtable.Engulf] or cooldown[classtable.Engulf].remains <4 or cooldown[classtable.Engulf].charges >0 )) and cooldown[classtable.ShatteringStar].ready then
         if not setSpell then setSpell = classtable.ShatteringStar end
     end
-    if (MaxDps:CheckSpellUsable(classtable.Engulf, 'Engulf') and talents[classtable.Engulf]) and (( debuff[classtable.FireBreathDamageDeBuff].remains >= 1 + 2 * (cooldown[classtable.EngulfDamage].duration - cooldown[classtable.EngulfDamage].remains <1) ) and ( next_dragonrage >= cooldown[classtable.Engulf].remains * 1.2 or not talents[classtable.Dragonrage] )) and cooldown[classtable.Engulf].ready then
+    if (MaxDps:CheckSpellUsable(classtable.Engulf, 'Engulf') and talents[classtable.Engulf]) and (( debuff[classtable.FireBreathDamageDeBuff].remains >= 1 + 2 * ( (cooldown[classtable.EngulfDamage].duration - cooldown[classtable.EngulfDamage].remains <1) and 1 or 0) ) and ( next_dragonrage >= cooldown[classtable.Engulf].remains * 1.2 or not talents[classtable.Dragonrage] )) and cooldown[classtable.Engulf].ready then
         MaxDps:GlowCooldown(classtable.Engulf, cooldown[classtable.Engulf].ready)
     end
     if (MaxDps:CheckSpellUsable(classtable.Pyre, 'Pyre')) and (buff[classtable.ChargedBlastBuff].count >= 12 and ( cooldown[classtable.Dragonrage].remains >gcd * 4 or not talents[classtable.Dragonrage] )) and cooldown[classtable.Pyre].ready then
