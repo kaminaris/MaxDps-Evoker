@@ -165,7 +165,7 @@ function Devastation:aoe()
         if not setSpell then setSpell = classtable.ShatteringStar end
     end
     if (MaxDps:CheckSpellUsable(classtable.Engulf, 'Engulf') and talents[classtable.Engulf]) and (( debuff[classtable.FireBreathDamageDeBuff].remains >= 1 + 2 * (cooldown[classtable.EngulfDamage].duration - cooldown[classtable.EngulfDamage].remains <1) ) and ( next_dragonrage >= cooldown[classtable.Engulf].remains * 1.2 or not talents[classtable.Dragonrage] )) and cooldown[classtable.Engulf].ready then
-        if not setSpell then setSpell = classtable.Engulf end
+        MaxDps:GlowCooldown(classtable.Engulf, cooldown[classtable.Engulf].ready)
     end
     if (MaxDps:CheckSpellUsable(classtable.Pyre, 'Pyre')) and (buff[classtable.ChargedBlastBuff].count >= 12 and ( cooldown[classtable.Dragonrage].remains >gcd * 4 or not talents[classtable.Dragonrage] )) and cooldown[classtable.Pyre].ready then
         if not setSpell then setSpell = classtable.Pyre end
@@ -201,38 +201,49 @@ end
 function Devastation:es()
     if (MaxDps:CheckSpellUsable(classtable.EternitySurge, 'EternitySurge')) and (targets <= 1 + (talents[classtable.EternitysSpan] and talents[classtable.EternitysSpan] or 0) or ( can_extend_dr and talents[classtable.Animosity] or talents[classtable.MassDisintegrate] ) and targets >( 3 + (talents[classtable.FontofMagic] and talents[classtable.FontofMagic] or 0) + 4 * (talents[classtable.EternitysSpan] and talents[classtable.EternitysSpan] or 0) ) or buff[classtable.DragonrageBuff].remains <1.75 * SpellHaste and buff[classtable.DragonrageBuff].remains >= 1 * SpellHaste and talents[classtable.Animosity] and can_extend_dr) and cooldown[classtable.EternitySurge].ready then
         if not setSpell then setSpell = classtable.EternitySurge end
+        MaxDps.FrameData.empowerLevel[classtable.EternitySurge] = 1
     end
     if (MaxDps:CheckSpellUsable(classtable.EternitySurge, 'EternitySurge')) and (targets <= 2 + 2 * (talents[classtable.EternitysSpan] and talents[classtable.EternitysSpan] or 0) or buff[classtable.DragonrageBuff].remains <2.5 * SpellHaste and buff[classtable.DragonrageBuff].remains >= 1.75 * SpellHaste and talents[classtable.Animosity] and can_extend_dr) and cooldown[classtable.EternitySurge].ready then
         if not setSpell then setSpell = classtable.EternitySurge end
+        MaxDps.FrameData.empowerLevel[classtable.EternitySurge] = 2
     end
     if (MaxDps:CheckSpellUsable(classtable.EternitySurge, 'EternitySurge')) and (targets <= 3 + 3 * (talents[classtable.EternitysSpan] and talents[classtable.EternitysSpan] or 0) or not talents[classtable.FontofMagic] and talents[classtable.MassDisintegrate] or buff[classtable.DragonrageBuff].remains <= 3.25 * SpellHaste and buff[classtable.DragonrageBuff].remains >= 2.5 * SpellHaste and talents[classtable.Animosity] and can_extend_dr) and cooldown[classtable.EternitySurge].ready then
         if not setSpell then setSpell = classtable.EternitySurge end
+        MaxDps.FrameData.empowerLevel[classtable.EternitySurge] = 3
     end
     if (MaxDps:CheckSpellUsable(classtable.EternitySurge, 'EternitySurge')) and (talents[classtable.MassDisintegrate] or targets <= 4 + 4 * (talents[classtable.EternitysSpan] and talents[classtable.EternitysSpan] or 0)) and cooldown[classtable.EternitySurge].ready then
         if not setSpell then setSpell = classtable.EternitySurge end
+        MaxDps.FrameData.empowerLevel[classtable.EternitySurge]  = 4
     end
 end
 function Devastation:fb()
-    if (MaxDps:CheckSpellUsable(classtable.FireBreath, 'FireBreath')) and (talents[classtable.ScorchingEmbers] and ( cooldown[classtable.Engulf].remains <= ( classtable and classtable.FireBreath and GetSpellInfo(classtable.FireBreath).castTime /1000 or 0) + 0.5 or cooldown[classtable.Engulf].ready ) and talents[classtable.Engulf] and release.dot_duration <= ttd) and cooldown[classtable.FireBreath].ready then
+    if (MaxDps:CheckSpellUsable(classtable.FireBreath, 'FireBreath')) and (talents[classtable.ScorchingEmbers] and ( cooldown[classtable.Engulf].remains <= ( classtable and classtable.FireBreath and GetSpellInfo(classtable.FireBreath).castTime /1000 or 0) + 0.5 or cooldown[classtable.Engulf].ready ) and talents[classtable.Engulf] and 14 <= ttd) and cooldown[classtable.FireBreath].ready then
         if not setSpell then setSpell = classtable.FireBreath end
+        MaxDps.FrameData.empowerLevel[classtable.FireBreath]  = 2
     end
-    if (MaxDps:CheckSpellUsable(classtable.FireBreath, 'FireBreath')) and (talents[classtable.ScorchingEmbers] and ( cooldown[classtable.Engulf].remains <= ( classtable and classtable.FireBreath and GetSpellInfo(classtable.FireBreath).castTime /1000 or 0) + 0.5 or cooldown[classtable.Engulf].ready ) and talents[classtable.Engulf] and ( release.dot_duration <= ttd or not talents[classtable.FontofMagic] )) and cooldown[classtable.FireBreath].ready then
+    if (MaxDps:CheckSpellUsable(classtable.FireBreath, 'FireBreath')) and (talents[classtable.ScorchingEmbers] and ( cooldown[classtable.Engulf].remains <= ( classtable and classtable.FireBreath and GetSpellInfo(classtable.FireBreath).castTime /1000 or 0) + 0.5 or cooldown[classtable.Engulf].ready ) and talents[classtable.Engulf] and ( 8 <= ttd or not talents[classtable.FontofMagic] )) and cooldown[classtable.FireBreath].ready then
         if not setSpell then setSpell = classtable.FireBreath end
+        MaxDps.FrameData.empowerLevel[classtable.FireBreath]  = 3
     end
     if (MaxDps:CheckSpellUsable(classtable.FireBreath, 'FireBreath')) and (talents[classtable.ScorchingEmbers] and ( cooldown[classtable.Engulf].remains <= ( classtable and classtable.FireBreath and GetSpellInfo(classtable.FireBreath).castTime /1000 or 0) + 0.5 or cooldown[classtable.Engulf].ready ) and talents[classtable.Engulf] and talents[classtable.FontofMagic]) and cooldown[classtable.FireBreath].ready then
         if not setSpell then setSpell = classtable.FireBreath end
+        MaxDps.FrameData.empowerLevel[classtable.FireBreath]  = 4
     end
-    if (MaxDps:CheckSpellUsable(classtable.FireBreath, 'FireBreath')) and (( ( buff[classtable.DragonrageBuff].remains <1.75 * SpellHaste and buff[classtable.DragonrageBuff].remains >= 1 * SpellHaste ) and talents[classtable.Animosity] and can_extend_dr or targets == 1 ) and release.dot_duration <= ttd) and cooldown[classtable.FireBreath].ready then
+    if (MaxDps:CheckSpellUsable(classtable.FireBreath, 'FireBreath')) and (( ( buff[classtable.DragonrageBuff].remains <1.75 * SpellHaste and buff[classtable.DragonrageBuff].remains >= 1 * SpellHaste ) and talents[classtable.Animosity] and can_extend_dr or targets == 1 ) and 20 <= ttd) and cooldown[classtable.FireBreath].ready then
         if not setSpell then setSpell = classtable.FireBreath end
+        MaxDps.FrameData.empowerLevel[classtable.FireBreath]  = 1
     end
-    if (MaxDps:CheckSpellUsable(classtable.FireBreath, 'FireBreath')) and (( ( buff[classtable.DragonrageBuff].remains <2.5 * SpellHaste and buff[classtable.DragonrageBuff].remains >= 1.75 * SpellHaste ) and talents[classtable.Animosity] and can_extend_dr or talents[classtable.ScorchingEmbers] or targets >= 2 ) and release.dot_duration <= ttd) and cooldown[classtable.FireBreath].ready then
+    if (MaxDps:CheckSpellUsable(classtable.FireBreath, 'FireBreath')) and (( ( buff[classtable.DragonrageBuff].remains <2.5 * SpellHaste and buff[classtable.DragonrageBuff].remains >= 1.75 * SpellHaste ) and talents[classtable.Animosity] and can_extend_dr or talents[classtable.ScorchingEmbers] or targets >= 2 ) and 14 <= ttd) and cooldown[classtable.FireBreath].ready then
         if not setSpell then setSpell = classtable.FireBreath end
+        MaxDps.FrameData.empowerLevel[classtable.FireBreath]  = 2
     end
-    if (MaxDps:CheckSpellUsable(classtable.FireBreath, 'FireBreath')) and (not talents[classtable.FontofMagic] or ( ( buff[classtable.DragonrageBuff].remains <= 3.25 * SpellHaste and buff[classtable.DragonrageBuff].remains >= 2.5 * SpellHaste ) and talents[classtable.Animosity] and can_extend_dr or talents[classtable.ScorchingEmbers] ) and release.dot_duration <= ttd) and cooldown[classtable.FireBreath].ready then
+    if (MaxDps:CheckSpellUsable(classtable.FireBreath, 'FireBreath')) and (not talents[classtable.FontofMagic] or ( ( buff[classtable.DragonrageBuff].remains <= 3.25 * SpellHaste and buff[classtable.DragonrageBuff].remains >= 2.5 * SpellHaste ) and talents[classtable.Animosity] and can_extend_dr or talents[classtable.ScorchingEmbers] ) and 8 <= ttd) and cooldown[classtable.FireBreath].ready then
         if not setSpell then setSpell = classtable.FireBreath end
+        MaxDps.FrameData.empowerLevel[classtable.FireBreath]  = 3
     end
     if (MaxDps:CheckSpellUsable(classtable.FireBreath, 'FireBreath')) and (max(targethealthPerc)) and cooldown[classtable.FireBreath].ready then
         if not setSpell then setSpell = classtable.FireBreath end
+        MaxDps.FrameData.empowerLevel[classtable.FireBreath]  = 4
     end
 end
 function Devastation:green()
@@ -258,24 +269,30 @@ function Devastation:st()
     end
     if (MaxDps:CheckSpellUsable(classtable.FireBreath, 'FireBreath')) and (( talents[classtable.ScorchingEmbers] and talents[classtable.Engulf] and cooldown[classtable.Engulf].remains <= ( classtable and classtable.FireBreath and GetSpellInfo(classtable.FireBreath).castTime /1000 or 0) + 0.5 ) and can_use_empower and cooldown[classtable.Engulf].fullRecharge <= cooldown[classtable.FireBreath].duration + 4) and cooldown[classtable.FireBreath].ready then
         if not setSpell then setSpell = classtable.FireBreath end
+        MaxDps.FrameData.empowerLevel[classtable.FireBreath]  = 4
     end
     if (MaxDps:CheckSpellUsable(classtable.FireBreath, 'FireBreath')) and (talents[classtable.Engulf] and talents[classtable.FulminousRoar] and can_use_empower) and cooldown[classtable.FireBreath].ready then
         if not setSpell then setSpell = classtable.FireBreath end
+        MaxDps.FrameData.empowerLevel[classtable.FireBreath]  = 1
     end
     if (MaxDps:CheckSpellUsable(classtable.FireBreath, 'FireBreath')) and (can_use_empower and not buff[classtable.DragonrageBuff].up) and cooldown[classtable.FireBreath].ready then
         if not setSpell then setSpell = classtable.FireBreath end
+        MaxDps.FrameData.empowerLevel[classtable.FireBreath]  = 2
     end
     if (MaxDps:CheckSpellUsable(classtable.FireBreath, 'FireBreath')) and (can_use_empower) and cooldown[classtable.FireBreath].ready then
         if not setSpell then setSpell = classtable.FireBreath end
+        MaxDps.FrameData.empowerLevel[classtable.FireBreath] = 1
     end
-    if (MaxDps:CheckSpellUsable(classtable.Engulf, 'Engulf') and talents[classtable.Engulf]) and (( debuff[classtable.FireBreathDamageDeBuff].remains >1 ) and ( debuff[classtable.LivingFlameDamageDeBuff].remains >1 or not talents[classtable.RubyEmbers] ) and ( debuff[classtable.EnkindleDeBuff].remains >1 or not talents[classtable.Enkindle] ) and ( not talents[classtable.Iridescence] or buff[classtable.IridescenceRedBuff].up ) and ( not talents[classtable.ScorchingEmbers] or debuff[classtable.FireBreathDamageDeBuff].duration <= 6 or ttd <= 30 ) and ( debuff[classtable.ShatteringStarDeBuff].remains >1 or cooldown[classtable.Engulf].fullRecharge < cooldown[classtable.ShatteringStar].remains or talents[classtable.ScorchingEmbers] )) and cooldown[classtable.Engulf].ready then
-        if not setSpell then setSpell = classtable.Engulf end
+    if (MaxDps:CheckSpellUsable(classtable.Engulf, 'Engulf') and talents[classtable.Engulf]) and (( debuff[classtable.FireBreathDamageDeBuff].remains >1 ) and ( debuff[classtable.LivingFlameDamageDeBuff].remains >1 or not talents[classtable.RubyEmbers] ) and ( debuff[classtable.EnkindleDeBuff].remains >1 or not talents[classtable.Enkindle] ) and ( not talents[classtable.Iridescence] or buff[classtable.IridescenceRedBuff].up ) and ( not talents[classtable.ScorchingEmbers] or debuff[classtable.FireBreathDamageDeBuff].duration <= 6 or ttd <= 30 ) and ( debuff[classtable.ShatteringStarDeBuff].remains >1 or cooldown[classtable.Engulf].fullRecharge <cooldown[classtable.ShatteringStar].remains or talents[classtable.ScorchingEmbers] )) and cooldown[classtable.Engulf].ready then
+        MaxDps:GlowCooldown(classtable.Engulf, cooldown[classtable.Engulf].ready)
     end
     if (MaxDps:CheckSpellUsable(classtable.EternitySurge, 'EternitySurge')) and (( not talents[classtable.PowerSwell] or buff[classtable.PowerSwellBuff].remains <= ( classtable and classtable.EternitySurge and GetSpellInfo(classtable.EternitySurge).castTime /1000 or 0) or not talents[classtable.MassDisintegrate] ) and targets == 2 and not talents[classtable.EternitysSpan] and can_use_empower) and cooldown[classtable.EternitySurge].ready then
         if not setSpell then setSpell = classtable.EternitySurge end
+        MaxDps.FrameData.empowerLevel[classtable.EternitySurge] = 2
     end
     if (MaxDps:CheckSpellUsable(classtable.EternitySurge, 'EternitySurge')) and (( not talents[classtable.PowerSwell] or buff[classtable.PowerSwellBuff].remains <= ( classtable and classtable.EternitySurge and GetSpellInfo(classtable.EternitySurge).castTime /1000 or 0) or not talents[classtable.MassDisintegrate] ) and can_use_empower) and cooldown[classtable.EternitySurge].ready then
         if not setSpell then setSpell = classtable.EternitySurge end
+        MaxDps.FrameData.empowerLevel[classtable.EternitySurge] = 1
     end
     if (MaxDps:CheckSpellUsable(classtable.LivingFlame, 'LivingFlame')) and (buff[classtable.DragonrageBuff].up and buff[classtable.DragonrageBuff].remains <( 1 - buff[classtable.EssenceBurstBuff].count ) * gcd and buff[classtable.BurnoutBuff].up) and cooldown[classtable.LivingFlame].ready then
         if not setSpell then setSpell = classtable.LivingFlame end
@@ -324,6 +341,7 @@ local function ClearCDs()
     MaxDps:GlowCooldown(classtable.DeepBreath, false)
     MaxDps:GlowCooldown(classtable.TiptheScales, false)
     MaxDps:GlowCooldown(classtable.Dragonrage, false)
+    MaxDps:GlowCooldown(classtable.Engulf, false)
     MaxDps:GlowCooldown(classtable.EmeraldBlossom, false)
 end
 
@@ -370,6 +388,9 @@ function Evoker:Devastation()
     classtable = MaxDps.SpellTable
     SpellHaste = UnitSpellHaste('player')
     SpellCrit = GetCritChance()
+    if not MaxDps.FrameData.empowerLevel then
+        MaxDps.FrameData.empowerLevel = {}
+    end
     Essence = UnitPower('player', EssencePT)
     EssenceMax = UnitPowerMax('player', EssencePT)
     EssenceDeficit = EssenceMax - Essence
