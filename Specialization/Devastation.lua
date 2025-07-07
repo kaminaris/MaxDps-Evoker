@@ -112,10 +112,10 @@ function Devastation:precombat()
         MaxDps:GlowCooldown(classtable.VerdantEmbrace, cooldown[classtable.VerdantEmbrace].ready)
     end
     if (MaxDps:CheckSpellUsable(classtable.Hover, 'Hover')) and (talents[classtable.Slipstream]) and cooldown[classtable.Hover].ready and not UnitAffectingCombat('player') then
-        if not setSpell then setSpell = classtable.Hover end
+        MaxDps:GlowCooldown(classtable.Hover, cooldown[classtable.Hover].ready)
     end
     if (MaxDps:CheckSpellUsable(classtable.Hover, 'Hover')) and (talents[classtable.Slipstream]) and cooldown[classtable.Hover].ready and not UnitAffectingCombat('player') then
-        if not setSpell then setSpell = classtable.Hover end
+        MaxDps:GlowCooldown(classtable.Hover, cooldown[classtable.Hover].ready)
     end
     if (MaxDps:CheckSpellUsable(classtable.Firestorm, 'Firestorm') and talents[classtable.Firestorm]) and (talents[classtable.Firestorm] and ( not talents[classtable.Engulf] or not talents[classtable.RubyEmbers] )) and cooldown[classtable.Firestorm].ready and not UnitAffectingCombat('player') then
         if not setSpell then setSpell = classtable.Firestorm end
@@ -129,7 +129,7 @@ function Devastation:aoe()
         if not setSpell then setSpell = classtable.ShatteringStar end
     end
     if (MaxDps:CheckSpellUsable(classtable.Hover, 'Hover')) and (math.huge <6 and not buff[classtable.HoverBuff].up and gcd >= 0.5 and ( buff[classtable.MassDisintegrateStacksBuff].up and talents[classtable.MassDisintegrate] or targets <= 4 )) and cooldown[classtable.Hover].ready then
-        if not setSpell then setSpell = classtable.Hover end
+        MaxDps:GlowCooldown(classtable.Hover, cooldown[classtable.Hover].ready)
     end
     if (MaxDps:CheckSpellUsable(classtable.Firestorm, 'Firestorm') and talents[classtable.Firestorm]) and (buff[classtable.SnapfireBuff].up and not talents[classtable.FeedtheFlames]) and cooldown[classtable.Firestorm].ready then
         if not setSpell then setSpell = classtable.Firestorm end
@@ -259,7 +259,7 @@ function Devastation:st()
         MaxDps:GlowCooldown(classtable.Dragonrage, cooldown[classtable.Dragonrage].ready)
     end
     if (MaxDps:CheckSpellUsable(classtable.Hover, 'Hover')) and (math.huge <6 and not buff[classtable.HoverBuff].up and gcd >= 0.5 or talents[classtable.Slipstream] and gcd >= 0.5) and cooldown[classtable.Hover].ready then
-        if not setSpell then setSpell = classtable.Hover end
+        MaxDps:GlowCooldown(classtable.Hover, cooldown[classtable.Hover].ready)
     end
     if (MaxDps:CheckSpellUsable(classtable.TiptheScales, 'TiptheScales')) and (buff[classtable.DragonrageBuff].up and cooldown[classtable.FireBreath].remains <= cooldown[classtable.EternitySurge].remains) and cooldown[classtable.TiptheScales].ready then
         MaxDps:GlowCooldown(classtable.TiptheScales, cooldown[classtable.TiptheScales].ready)
@@ -343,6 +343,7 @@ local function ClearCDs()
     MaxDps:GlowCooldown(classtable.Dragonrage, false)
     MaxDps:GlowCooldown(classtable.Engulf, false)
     MaxDps:GlowCooldown(classtable.EmeraldBlossom, false)
+    MaxDps:GlowCooldown(classtable.Hover, false)
 end
 
 function Devastation:callaction()
